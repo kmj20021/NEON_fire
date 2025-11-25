@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "297154945940",
+    "project_id": "neon-fire-6f34c",
+    "storage_bucket": "neon-fire-6f34c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:297154945940:android:96e7720e9513d1db0a2581",
+        "android_client_info": {
+          "package_name": "com.example.neon_fire"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPqIwYSuYrprE77vB4CHnxkXwLOHD7YYU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
