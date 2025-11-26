@@ -1,103 +1,103 @@
-import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import 'home_screen.dart';
+// import 'package:flutter/material.dart';
+// import '../services/auth_service.dart';
+// import 'home_screen.dart';
 
-class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
+// class SignUpScreen extends StatefulWidget {
+//   const SignUpScreen({super.key});
 
-  @override
-  State<SignUpScreen> createState() => _SignUpScreenState();
-}
+//   @override
+//   State<SignUpScreen> createState() => _SignUpScreenState();
+// }
 
-class _SignUpScreenState extends State<SignUpScreen> {
-  final _emailController = TextEditingController();
-  final _pwController = TextEditingController();
+// class _SignUpScreenState extends State<SignUpScreen> {
+//   final _emailController = TextEditingController(); //from material UI
+//   final _pwController = TextEditingController();
 
-  final _authService = AuthService();
+//   final _authService = AuthService();
 
-  bool _isLoading = false;
-  String? _errorMessage;
+//   bool _isLoading = false;
+//   String? _errorMessage;
 
-  // 회원가입 처리 메서드
-  Future<void> _handleSignUp() async {
-    final email = _emailController.text.trim();
-    final pw = _pwController.text.trim();
+//   // 회원가입 처리 메서드
+//   Future<void> _handleSignUp() async {
+//     final email = _emailController.text.trim();
+//     final pw = _pwController.text.trim();
 
-    if (email.isEmpty || pw.isEmpty) {
-      setState(() {
-        _errorMessage = "이메일과 비밀번호를 입력해 주세요.";
-      });
-      return;
-    }
+//     if (email.isEmpty || pw.isEmpty) {
+//       setState(() {
+//         _errorMessage = "이메일과 비밀번호를 입력해 주세요.";
+//       });
+//       return;
+//     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+//     setState(() {
+//       _isLoading = true;
+//       _errorMessage = null;
+//     });
 
-    try {
-      await _authService.signUpWithEmail(email: email, password: pw);
+//     try {
+//       await _authService.signUpWithEmail(email: email, password: pw);
 
-      // 회원가입 성공 → 홈 화면으로 이동
-      if (!mounted) return; //mounted 뜻 : 위젯이 현재 트리에서 활성 상태인지 확인
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } on Exception catch (e) {
-      setState(() {
-        _errorMessage = "회원가입 실패: $e";
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
+//       // 회원가입 성공 → 홈 화면으로 이동
+//       if (!mounted) return; //mounted 뜻 : 위젯의 현재 트리가 존재하지 않으면 멈춤
+//       Navigator.pushReplacement( //이전 화면으로 못 감 .push .pop가능
+//         context, //위젯 트리 위치 정보
+//         MaterialPageRoute(builder: (_) => const HomeScreen()), //보통 (context) => const HomeScreen()으로 씀
+//       );
+//     } on Exception catch (e) { //on의 뜻 : Exception 타입의 에러만 잡음
+//       setState(() {
+//         _errorMessage = "회원가입 실패: $e";
+//       });
+//     } finally {
+//       if (mounted) {
+//         setState(() => _isLoading = false);
+//       }
+//     }
+//   }
 
-  // 컨트롤러 해제
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _pwController.dispose();
-    super.dispose();
-  }
+//   // 컨트롤러 해제(사용자의 이벤트를 감시하는 것(=listener)들)
+//   @override
+//   void dispose() {
+//     _emailController.dispose();
+//     _pwController.dispose();
+//     super.dispose();
+//   }
 
-  // UI 빌드
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('회원가입')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: '이메일'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _pwController,
-              decoration: const InputDecoration(labelText: '비밀번호'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 16),
-            if (_errorMessage != null)
-              Text(
-                _errorMessage!,
-                style: const TextStyle(color: Colors.red),
-              ),
-            const SizedBox(height: 16),
-            _isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: _handleSignUp,
-                    child: const Text('회원가입'),
-                  ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+//   // UI 빌드
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(title: const Text('회원가입')),
+//       body: Padding(
+//         padding: const EdgeInsets.all(16),
+//         child: Column(
+//           children: [
+//             TextField(
+//               controller: _emailController,
+//               decoration: const InputDecoration(labelText: '이메일'),
+//             ),
+//             const SizedBox(height: 12),
+//             TextField(
+//               controller: _pwController,
+//               decoration: const InputDecoration(labelText: '비밀번호'),
+//               obscureText: true,
+//             ),
+//             const SizedBox(height: 16),
+//             if (_errorMessage != null)
+//               Text(
+//                 _errorMessage!,
+//                 style: const TextStyle(color: Colors.red),
+//               ),
+//             const SizedBox(height: 16),
+//             _isLoading
+//                 ? const CircularProgressIndicator() //애니메이션 위젯
+//                 : ElevatedButton(
+//                     onPressed: _handleSignUp,
+//                     child: const Text('회원가입'),
+//                   ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }

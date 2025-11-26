@@ -16,7 +16,7 @@ class AuthService {
     return credential;
   }
 
-  // 현재 로그인한 유저
+  // 변수처럼 사용(User? user1 =AuthService.currentUser)
   User? get currentUser => _auth.currentUser;
 
   // 로그아웃
