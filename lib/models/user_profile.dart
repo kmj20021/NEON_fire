@@ -1,6 +1,4 @@
 // lib/models/app_user.dart
-import 'package:firebase_auth/firebase_auth.dart';
-
 class AppUser {
   final String uid;
   final String email;
@@ -18,20 +16,6 @@ class AppUser {
     required this.createdAt,
   });
 
-  /// Firebase User -> AppUser 로 변환
-  /// (닉네임/주소/전화번호는 나중에 따로 채울 수 있게 기본값 '')
-  factory AppUser.fromFirebaseUser(User user) {
-    return AppUser(
-      uid: user.uid,
-      email: user.email ?? '',
-      nickname: '',
-      address: '',
-      phone: '',
-      createdAt: DateTime.now(),
-    );
-  }
-
-  /// Firestore 저장용
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
@@ -43,7 +27,6 @@ class AppUser {
     };
   }
 
-  /// Firestore에서 불러오기용
   factory AppUser.fromMap(Map<String, dynamic> map, String documentId) {
     return AppUser(
       uid: documentId,
