@@ -235,7 +235,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '운동 캘린더',
+                    '운동 캘린더!',
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
