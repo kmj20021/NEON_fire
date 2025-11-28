@@ -1,12 +1,18 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
-import '../models/saved_routine.dart';
-import '../models/calendar_day.dart';
-import '../models/workout_data.dart';
+import 'package:neon_fire/models/home_models/saved_routine.dart';
+import 'package:neon_fire/models/home_models/calendar_day.dart';
+import 'package:neon_fire/models/home_models/workout_data.dart';
+import 'package:neon_fire/models/home_models/recommended_exercise_model.dart';
+import 'package:neon_fire/services/home_service/recommendation_service_v2.dart';
+import 'package:neon_fire/services/home_service/workout_stats_service.dart';
+import 'package:neon_fire/services/home_service/calender_service.dart';
 
 class HomeScreen extends StatefulWidget {
+  final String userId; // 🆕 추가
   final VoidCallback onLogout;
   final VoidCallback onNavigateToWorkout;
   final Function(String) navigateToPage;
@@ -15,11 +21,12 @@ class HomeScreen extends StatefulWidget {
 
   const HomeScreen({
     Key? key,
+    required this.userId, // 🆕 추가 (공백 제거)
     required this.onLogout,
     required this.onNavigateToWorkout,
     required this.navigateToPage,
     required this.savedRoutines,
-    required this. onStartWorkoutWithRoutine,
+    required this.onStartWorkoutWithRoutine,
   }) : super(key: key);
 
   @override
@@ -28,8 +35,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late List<CalendarDay> calendarDays;
-  bool showCalendarModal = false;
-  bool showRoutinesModal = false;
   int currentWeek = 0;
   String activeTab = '운동';
 
@@ -46,72 +51,75 @@ class _HomeScreenState extends State<HomeScreen> {
   final int consecutiveDays = 3;
   final Color primaryColor = const Color(0xFFFF5757);
 
-  // 🆕 추천 운동 데이터
-  final int daysSinceLastWorkout = 5;
-  final String recommendedExerciseName = '랫풀다운';
-  final String recommendedExerciseDescription = '등 전체를 사용하는 광배근 운동';
-  final String recommendedExerciseImagePath = 'assets/images/latpulldown.jpg'; // 실제 경로로 변경
+  // 🆕 Firebase에서 가져올 추천 운동 데이터
+  RecommendedExercise? recommendedExercise;
+  bool isLoadingRecommendation = true;
+  final RecommendationServiceV2 _recommendationService = RecommendationServiceV2();
 
   @override
   void initState() {
     super.initState();
     calendarDays = _generateCalendarDays();
+    _loadRecommendedExercise(); // 🆕 추천 운동 로드
+  }
+
+    // 🆕 추천 운동 로드
+  Future<void> _loadRecommendedExercise() async {
+    setState(() => isLoadingRecommendation = true);
+    
+    try {
+      final exercise = await _recommendationService.getRecommendedExerciseAdvanced(
+        widget.userId,
+      );
+      
+      setState(() {
+        recommendedExercise = exercise;
+        isLoadingRecommendation = false;
+      });
+    } catch (e) {
+      print('추천 운동 로드 실패: $e');
+      setState(() => isLoadingRecommendation = false);
+    }
   }
 
   List<CalendarDay> _generateCalendarDays() {
     final today = DateTime.now();
     final currentMonth = today.month - 1;
     final currentYear = today.year;
-
-    final firstDay = DateTime(currentYear, currentMonth + 1, 1);
-    final lastDay = DateTime(currentYear, currentMonth + 2, 0);
-
+    
+    final firstDay = DateTime(currentYear, currentMonth + 1, 1); 
     final startDate = firstDay.subtract(Duration(days: firstDay.weekday % 7));
-
+    
     final days = <CalendarDay>[];
     var currentDate = startDate;
     final random = Random();
-
+    
     for (int i = 0; i < 21; i++) {
       final isCurrentMonth = currentDate.month == currentMonth + 1;
-      final isToday =
-          currentDate.year == today.year &&
+      final isToday = currentDate.year == today.year &&
           currentDate.month == today.month &&
           currentDate.day == today.day;
-          currentDate.day == today.day;
       final hasWorkout = random.nextDouble() > 0.6;
-
-      days.add(
-        CalendarDay(
-          date: currentDate,
-          day: currentDate.day,
-          isCurrentMonth: isCurrentMonth,
-          isToday: isToday,
-          hasWorkout: isCurrentMonth && hasWorkout,
-        ),
-      );
-
+      
+      days.add(CalendarDay(
+        date: currentDate,
+        day: currentDate.day,
+        isCurrentMonth: isCurrentMonth,
+        isToday: isToday,
+        hasWorkout: isCurrentMonth && hasWorkout,
+      ));
+      
       currentDate = currentDate.add(const Duration(days: 1));
     }
-
+    
     return days;
   }
 
-  String _getCurrentMonthYear() {
+String _getCurrentMonthYear() {
     final today = DateTime.now();
     const monthNames = [
-      '1월',
-      '2월',
-      '3월',
-      '4월',
-      '5월',
-      '6월',
-      '7월',
-      '8월',
-      '9월',
-      '10월',
-      '11월',
-      '12월',
+      '1월', '2월', '3월', '4월', '5월', '6월',
+      '7월', '8월', '9월', '10월', '11월', '12월'
     ];
     return '${today.year} ${monthNames[today.month - 1]}';
   }
@@ -134,19 +142,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 automaticallyImplyLeading: false,
                 flexibleSpace: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
                           onPressed: () => widget.navigateToPage('프로틴 구매'),
-                          icon: const Icon(
-                            Icons.shopping_cart,
-                            color: Colors.black54,
-                          ),
+                          icon: const Icon(Icons.shopping_cart, color: Colors.black54),
                         ),
                         Row(
                           children: [
@@ -182,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    // 🆕 추천 운동 위젯 추가
+                    // 🆕 추천 운동 위젯 (Firebase 데이터 사용)
                     _buildRecommendedExerciseWidget(),
                     const SizedBox(height: 24),
                     _buildCalendarWidget(),
@@ -219,13 +221,56 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 🆕 추천 운동 위젯
+  // 🆕 수정된 추천 운동 위젯 (Firebase 데이터 사용)
   Widget _buildRecommendedExerciseWidget() {
+    if (isLoadingRecommendation) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: primaryColor. withOpacity(0.3), width: 2),
+        ),
+        padding: const EdgeInsets.all(16),
+        height: 200,
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (recommendedExercise == null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Icon(Icons.fitness_center, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 8),
+            Text(
+              '추천 운동을 불러올 수 없습니다',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _loadRecommendedExercise,
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final exercise = recommendedExercise!;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primaryColor. withOpacity(0.3), width: 2),
+        border: Border.all(color: primaryColor.withOpacity(0.3), width: 2),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -262,7 +307,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(width: 6),
               Text(
-                '마지막 등 운동 후 ${daysSinceLastWorkout}일 경과! ',
+                exercise.daysSinceLastWorkout > 100
+                    ? '${exercise.muscleGroup} 운동을 시작해보세요!'
+                    : '마지막 ${exercise.muscleGroup} 운동 후 ${exercise.daysSinceLastWorkout}일 경과!',
                 style: TextStyle(
                   fontSize: 14,
                   color: primaryColor,
@@ -289,21 +336,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 80,
                     height: 80,
                     color: Colors.grey.shade200,
-                    child: Image. asset(
-                      recommendedExerciseImagePath,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        // 이미지 로드 실패 시 기본 아이콘 표시
-                        return Container(
-                          color: Colors.grey.shade300,
-                          child: Icon(
-                            Icons.fitness_center,
-                            size: 40,
-                            color: Colors.grey.shade600,
-                          ),
-                        );
-                      },
-                    ),
+                    child: exercise.imagePath != null
+                        ? Image.asset(
+                            exercise.imagePath!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildPlaceholderIcon();
+                            },
+                          )
+                        : _buildPlaceholderIcon(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -311,10 +352,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 // 운동 정보
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment. start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        recommendedExerciseName,
+                        exercise.exerciseName,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -322,16 +363,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        recommendedExerciseDescription,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors. grey.shade700,
-                          height: 1.3,
+                      if (exercise.description != null)
+                        Text(
+                          exercise.description!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade700,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                       const SizedBox(height: 8),
                       
                       // 부위 태그
@@ -347,9 +389,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
-                              '등',
-                              style: TextStyle(
+                            Text(
+                              exercise.muscleGroup,
+                              style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -377,12 +419,11 @@ class _HomeScreenState extends State<HomeScreen> {
           // 루틴에 추가하기 버튼
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton. icon(
+            child: OutlinedButton.icon(
               onPressed: () {
-                // 주석: 루틴에 추가하기 기능 구현 필요
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('$recommendedExerciseName을(를) 루틴에 추가했습니다! '),
+                    content: Text('${exercise.exerciseName}을(를) 루틴에 추가했습니다!'),
                     duration: const Duration(seconds: 2),
                   ),
                 );
@@ -400,6 +441,17 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderIcon() {
+    return Container(
+      color: Colors.grey.shade300,
+      child: Icon(
+        Icons.fitness_center,
+        size: 40,
+        color: Colors.grey.shade600,
       ),
     );
   }
@@ -454,7 +506,76 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 8),
                   TextButton(
-                    onPressed: () => setState(() => showCalendarModal = true),
+                  onPressed: () {
+                    // ✅ 캘린더 모달 표시
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text('${_getCurrentMonthYear()} 운동 캘린더'),
+                        content: SizedBox(
+                          width: double.maxFinite,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '이번 달 운동 기록을 확인하세요. 출석한 날은 빨간색으로 표시됩니다.',
+                                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                height: 200,
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                        children: ['일', '월', '화', '수', '목', '금', '토']
+                                            .map(
+                                              (day) => SizedBox(
+                                                width: 40,
+                                                child: Center(
+                                                  child: Text(
+                                                    day,
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ...List.generate(
+                                        3,
+                                        (weekIndex) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 4),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                            children: calendarDays
+                                                .sublist(weekIndex * 7, (weekIndex + 1) * 7)
+                                                .map((day) => _buildCalendarDay(day))
+                                                .toList(),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('닫기'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: Size. zero,
@@ -579,7 +700,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildWorkoutChart() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
@@ -753,9 +873,9 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: widget.onNavigateToWorkout,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
-              foregroundColor: Colors. white,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius. circular(8),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
             child: const Row(
@@ -773,7 +893,112 @@ class _HomeScreenState extends State<HomeScreen> {
           width: double.infinity,
           height: 48,
           child: OutlinedButton(
-            onPressed: () => setState(() => showRoutinesModal = true),
+            onPressed: () {
+              // ✅ 루틴 모달 표시
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('저장된 루틴'),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: widget.savedRoutines.isEmpty
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 64,
+                                height: 64,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.fitness_center,
+                                  size: 32,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                '저장된 루틴이 없습니다',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  widget.onNavigateToWorkout();
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryColor,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('새 루틴 만들기'),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '저장된 루틴을 선택하여 운동을 시작하세요.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxHeight: 300),
+                                child: ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: widget.savedRoutines.length,
+                                  itemBuilder: (context, index) {
+                                    final routine = widget.savedRoutines[index];
+                                    return Card(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      child: ListTile(
+                                        title: Text(routine.name),
+                                        subtitle: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text('${routine.workouts.length}개 운동'),
+                                            Text(
+                                              '${routine.createdAt.year}-${routine.createdAt.month.toString().padLeft(2, '0')}-${routine.createdAt.day.toString().padLeft(2, '0')} 저장',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        trailing: const Icon(Icons.play_arrow),
+                                        onTap: () {
+                                          Navigator.of(context).pop();
+                                          widget.onStartWorkoutWithRoutine(routine);
+                                        },
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              OutlinedButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  widget.onNavigateToWorkout();
+                                },
+                                child: const Text('새 루틴 만들기'),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              );
+            },
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.black87,
               side: BorderSide(color: Colors.grey.shade300),
@@ -797,7 +1022,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomNavigation() {
     final items = [
-      {'id': '운동', 'icon': Icons. play_arrow, 'label': '운동'},
+      {'id': '운동', 'icon': Icons.play_arrow, 'label': '운동'},
       {'id': '상태확인', 'icon': Icons. assessment, 'label': '상태확인'},
       {'id': '성과확인', 'icon': Icons. bar_chart, 'label': '성과확인'},
       {'id': '식단', 'icon': Icons.restaurant, 'label': '식단'},
@@ -834,7 +1059,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(
                       item['icon'] as IconData,
                       size: 20,
-                      color: isActive ? Colors.white : Colors. grey.shade600,
+                      color: isActive ? Colors.white : Colors.grey.shade600,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -849,187 +1074,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             );
           }).toList(),
-        ),
-      ),
-    );
-  }
-
-  // Calendar Modal
-  void _showCalendarModal() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${_getCurrentMonthYear()} 운동 캘린더'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '이번 달 운동 기록을 확인하세요.  출석한 날은 빨간색으로 표시됩니다.',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 16),
-              _buildFullCalendar(),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('닫기'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFullCalendar() {
-    final weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: weekDays
-              .map(
-                (day) => SizedBox(
-                  width: 40,
-                  child: Center(
-                    child: Text(
-                      day,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 8),
-        ...List.generate(
-          3,
-          (weekIndex) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: calendarDays
-                  .sublist(weekIndex * 7, (weekIndex + 1) * 7)
-                  .map((day) => _buildCalendarDay(day))
-                  .toList(),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Routines Modal
-  void _showRoutinesModal() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('저장된 루틴'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: widget.savedRoutines.isEmpty
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.fitness_center,
-                        size: 32,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '저장된 루틴이 없습니다',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onNavigateToWorkout();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('새 루틴 만들기'),
-                    ),
-                  ],
-                )
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '저장된 루틴을 선택하여 운동을 시작하세요.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 300),
-                      child: ListView.builder(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: widget.savedRoutines. length,
-                        itemBuilder: (context, index) {
-                          final routine = widget.savedRoutines[index];
-                          final routine = widget.savedRoutines[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              title: Text(routine.name),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('${routine.workouts.length}개 운동'),
-                                  Text(
-                                    '${routine. createdAt.year}-${routine.createdAt.month. toString().padLeft(2, '0')}-${routine.createdAt.day.toString().padLeft(2, '0')} 저장',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              trailing: const Icon(Icons.play_arrow),
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                widget.onStartWorkoutWithRoutine(routine);
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    OutlinedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onNavigateToWorkout();
-                      },
-                      child: const Text('새 루틴 만들기'),
-                    ),
-                  ],
-                ),
         ),
       ),
     );

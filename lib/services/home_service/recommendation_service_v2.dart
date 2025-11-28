@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:neon_fire/models/Recommended_exercise_model.dart';
+import 'package:neon_fire/models/home_models/recommended_exercise_model.dart';
 
 class RecommendationServiceV2 {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -50,13 +50,12 @@ class RecommendationServiceV2 {
       };
     }
 
-    // 최근 세션 가져오기
     final sessionsSnapshot = await _db
         .collection('users')
-        . doc(userId)
+        .doc(userId)
         .collection('workout_sessions')
-        . where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(thirtyDaysAgo))
-        . orderBy('startedAt', descending: true)
+        .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(thirtyDaysAgo))
+        .orderBy('startedAt', descending: true)
         .get();
 
     // 각 세션의 운동 조회
@@ -84,7 +83,7 @@ class RecommendationServiceV2 {
         final muscleIds = List<int>.from(exerciseInfo['allMuscleIds'] ?? []);
 
         for (var muscleId in muscleIds) {
-          if (muscleMap. containsKey(muscleId)) {
+          if (muscleMap.containsKey(muscleId)) {
             final current = muscleMap[muscleId]!;
             
             // 마지막 운동일 업데이트
@@ -108,7 +107,7 @@ class RecommendationServiceV2 {
 
   /// 운동 정보 조회
   Future<Map<String, dynamic>?> _getExerciseInfo(int exerciseId) async {
-    final doc = await _db. collection('exercises').doc('ex_$exerciseId').get();
+    final doc = await _db.collection('exercises').doc('ex_$exerciseId').get();
     return doc.exists ? doc.data() : null;
   }
 
@@ -167,14 +166,14 @@ class RecommendationServiceV2 {
     Map<String, dynamic>? selectedExercise;
     for (var doc in snapshot.docs) {
       final data = doc.data();
-      if (! recentExerciseIds.contains(data['id'])) {
+      if (!recentExerciseIds.contains(data['id'])) {
         selectedExercise = data;
         break;
       }
     }
 
     // 모두 해봤으면 첫 번째 운동
-    selectedExercise ??= snapshot.docs.first. data();
+    selectedExercise ??= snapshot.docs.first.data();
 
     return RecommendedExercise.fromMap(selectedExercise, 0);
   }
@@ -182,21 +181,21 @@ class RecommendationServiceV2 {
   /// 최근 한 운동 ID 목록
   Future<Set<int>> _getRecentExerciseIds(String userId) async {
     final Set<int> exerciseIds = {};
-    final sevenDaysAgo = DateTime. now().subtract(const Duration(days: 7));
+    final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
 
     final sessionsSnapshot = await _db
         .collection('users')
-        . doc(userId)
+        .doc(userId)
         .collection('workout_sessions')
-        . where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(sevenDaysAgo))
+        .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(sevenDaysAgo))
         . get();
 
     for (var sessionDoc in sessionsSnapshot.docs) {
       final exercisesSnapshot = await _db
           .collection('users')
-          . doc(userId)
+          .doc(userId)
           .collection('workout_sessions')
-          . doc(sessionDoc.id)
+          .doc(sessionDoc.id)
           .collection('exercises')
           .get();
 
@@ -210,7 +209,7 @@ class RecommendationServiceV2 {
 
   /// 랜덤 운동 추천
   Future<RecommendedExercise?> _getRandomExercise() async {
-    final snapshot = await _db. collection('exercises').limit(10). get();
+    final snapshot = await _db.collection('exercises').limit(10).get();
     
     if (snapshot.docs.isEmpty) return null;
     
