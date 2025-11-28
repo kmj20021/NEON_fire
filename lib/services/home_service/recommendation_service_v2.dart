@@ -116,10 +116,10 @@ class RecommendationServiceV2 {
     Map<int, Map<String, dynamic>> muscleMap,
   ) {
     final now = DateTime.now();
-    int? mostNeglectedMuscleId;
-    int maxDaysSince = -1;
+    int? mostNeglectedMuscleId; // 가장 방치된 근육 ID
+    int maxDaysSince = -1; // 최대 경과 일수
 
-    for (var entry in muscleMap.entries) {
+    for (var entry in muscleMap.entries) { // muscleId와 데이터 쌍
       final muscleId = entry.key;
       final data = entry.value;
       final lastDate = data['lastWorkoutDate'] as DateTime?;
@@ -141,8 +141,8 @@ class RecommendationServiceV2 {
 
     return {
       'muscleId': mostNeglectedMuscleId,
-      'daysSince': maxDaysSince,
-      'doneExercises': muscleMap[mostNeglectedMuscleId]!['exercises'],
+      'daysSince': maxDaysSince, // 마지막 운동 후 경과 일수
+      'doneExercises': muscleMap[mostNeglectedMuscleId]!['exercises'], // 이미 한 운동 목록
     };
   }
 

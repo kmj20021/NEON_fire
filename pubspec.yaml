@@ -19,12 +19,17 @@ dependencies:
   firebase_auth: ^6.1.2 #인증용
   cloud_firestore: ^6.1.0  #데이터베이스용
 
+  # URL 런처 #YouTube 링크 열기
+  url_launcher: ^6.2.2  
 
   # 차트 라이브러리
   fl_chart: ^0.65.0  
 
   # 상태 관리
   provider: ^6.1.1
+
+  # 라우팅
+  go_router: ^14.6.2
 
 dev_dependencies:
   flutter_test:

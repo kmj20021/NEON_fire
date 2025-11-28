@@ -1,11 +1,8 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:math';
-import 'package:neon_fire/models/home_models/saved_routine.dart';
+import 'package:neon_fire/models/saved_routine.dart';
 import 'package:neon_fire/models/home_models/calendar_day.dart';
-import 'package:neon_fire/models/home_models/workout_data.dart';
 import 'package:neon_fire/models/home_models/workout_stats_model.dart';
 import 'package:neon_fire/models/home_models/recommended_exercise_model.dart';
 import 'package:neon_fire/services/home_service/recommendation_service_v2.dart';
@@ -805,7 +802,7 @@ class _HomeScreenState extends State<HomeScreen> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: widget.onNavigateToWorkout,
+            onPressed: () => widget.navigateToPage('운동'),
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
