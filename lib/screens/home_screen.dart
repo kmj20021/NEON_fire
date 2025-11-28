@@ -1,18 +1,16 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:math';
-import 'package:neon_fire/models/home_models/saved_routine.dart';
+import 'package:neon_fire/models/saved_routine.dart';
 import 'package:neon_fire/models/home_models/calendar_day.dart';
-import 'package:neon_fire/models/home_models/workout_data.dart';
+import 'package:neon_fire/models/home_models/workout_stats_model.dart';
 import 'package:neon_fire/models/home_models/recommended_exercise_model.dart';
 import 'package:neon_fire/services/home_service/recommendation_service_v2.dart';
 import 'package:neon_fire/services/home_service/workout_stats_service.dart';
 import 'package:neon_fire/services/home_service/calender_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String userId; // 🆕 추가
+  final String userId; 
   final VoidCallback onLogout;
   final VoidCallback onNavigateToWorkout;
   final Function(String) navigateToPage;
@@ -21,7 +19,7 @@ class HomeScreen extends StatefulWidget {
 
   const HomeScreen({
     Key? key,
-    required this.userId, // 🆕 추가 (공백 제거)
+    required this.userId, 
     required this.onLogout,
     required this.onNavigateToWorkout,
     required this.navigateToPage,
@@ -34,44 +32,103 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late List<CalendarDay> calendarDays;
+  // 🆕 서비스 인스턴스
+  late final WorkoutStatsService _statsService = WorkoutStatsService();
+  late final CalendarService _calendarService = CalendarService();
+  late final RecommendationServiceV2 _recommendationService =
+      RecommendationServiceV2();
+
+  // 🆕 Firebase에서 가져올 데이터
+  late List<CalendarDay> calendarDays = [];
+  late List<WeeklyWorkoutData> weeklyWorkoutData = [];
+  int consecutiveDays = 0;
+  RecommendedExercise? recommendedExercise;
+
+  // 로딩 상태
+  bool isLoadingCalendar = true;
+  bool isLoadingWeeklyData = true;
+  bool isLoadingRecommendation = true;
+
+  bool showCalendarModal = false;
+  bool showRoutinesModal = false;
   int currentWeek = 0;
   String activeTab = '운동';
 
-  final List<WorkoutData> workoutData = [
-    WorkoutData(day: '월', minutes: 45),
-    WorkoutData(day: '화', minutes: 60),
-    WorkoutData(day: '수', minutes: 90),
-    WorkoutData(day: '목', minutes: 30),
-    WorkoutData(day: '금', minutes: 120),
-    WorkoutData(day: '토', minutes: 0),
-    WorkoutData(day: '일', minutes: 75),
-  ];
-
-  final int consecutiveDays = 3;
   final Color primaryColor = const Color(0xFFFF5757);
-
-  // 🆕 Firebase에서 가져올 추천 운동 데이터
-  RecommendedExercise? recommendedExercise;
-  bool isLoadingRecommendation = true;
-  final RecommendationServiceV2 _recommendationService = RecommendationServiceV2();
 
   @override
   void initState() {
     super.initState();
-    calendarDays = _generateCalendarDays();
-    _loadRecommendedExercise(); // 🆕 추천 운동 로드
+    _loadAllData();
   }
 
-    // 🆕 추천 운동 로드
-  Future<void> _loadRecommendedExercise() async {
-    setState(() => isLoadingRecommendation = true);
-    
+  /// 모든 데이터 로드
+  Future<void> _loadAllData() async {
+    await Future.wait([
+      _loadCalendarData(),
+      _loadWeeklyWorkoutData(),
+      _loadConsecutiveDays(),
+      _loadRecommendedExercise(),
+    ]);
+  }
+
+  /// 캘린더 데이터 로드
+  Future<void> _loadCalendarData() async {
     try {
-      final exercise = await _recommendationService.getRecommendedExerciseAdvanced(
+      setState(() => isLoadingCalendar = true);
+
+      final days = await _calendarService.generateMonthlyCalendar(widget.userId);
+
+      setState(() {
+        calendarDays = days;
+        isLoadingCalendar = false;
+      });
+    } catch (e) {
+      print('캘린더 데이터 로드 실패: $e');
+      setState(() => isLoadingCalendar = false);
+    }
+  }
+
+  /// 주간 운동 데이터 로드
+  Future<void> _loadWeeklyWorkoutData() async {
+    try {
+      setState(() => isLoadingWeeklyData = true);
+
+      final weekData =
+          await _statsService.getWeeklyWorkoutData(widget.userId);
+
+      setState(() {
+        weeklyWorkoutData = weekData;
+        isLoadingWeeklyData = false;
+      });
+    } catch (e) {
+      print('주간 데이터 로드 실패: $e');
+      setState(() => isLoadingWeeklyData = false);
+    }
+  }
+
+  /// 연속 운동일 로드
+  Future<void> _loadConsecutiveDays() async {
+    try {
+      final days =
+          await _statsService.getConsecutiveWorkoutDays(widget.userId);
+
+      setState(() => consecutiveDays = days);
+    } catch (e) {
+      print('연속 운동일 로드 실패: $e');
+    }
+  }
+
+  /// 추천 운동 로드
+  Future<void> _loadRecommendedExercise() async {
+    try {
+      setState(() => isLoadingRecommendation = true);
+
+      final exercise =
+          await _recommendationService. getRecommendedExerciseAdvanced(
         widget.userId,
       );
-      
+
       setState(() {
         recommendedExercise = exercise;
         isLoadingRecommendation = false;
@@ -82,40 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  List<CalendarDay> _generateCalendarDays() {
-    final today = DateTime.now();
-    final currentMonth = today.month - 1;
-    final currentYear = today.year;
-    
-    final firstDay = DateTime(currentYear, currentMonth + 1, 1); 
-    final startDate = firstDay.subtract(Duration(days: firstDay.weekday % 7));
-    
-    final days = <CalendarDay>[];
-    var currentDate = startDate;
-    final random = Random();
-    
-    for (int i = 0; i < 21; i++) {
-      final isCurrentMonth = currentDate.month == currentMonth + 1;
-      final isToday = currentDate.year == today.year &&
-          currentDate.month == today.month &&
-          currentDate.day == today.day;
-      final hasWorkout = random.nextDouble() > 0.6;
-      
-      days.add(CalendarDay(
-        date: currentDate,
-        day: currentDate.day,
-        isCurrentMonth: isCurrentMonth,
-        isToday: isToday,
-        hasWorkout: isCurrentMonth && hasWorkout,
-      ));
-      
-      currentDate = currentDate.add(const Duration(days: 1));
-    }
-    
-    return days;
-  }
-
-String _getCurrentMonthYear() {
+  String _getCurrentMonthYear() {
     final today = DateTime.now();
     const monthNames = [
       '1월', '2월', '3월', '4월', '5월', '6월',
@@ -124,13 +148,13 @@ String _getCurrentMonthYear() {
     return '${today.year} ${monthNames[today.month - 1]}';
   }
 
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
       body: Stack(
         children: [
-          // Main Content
           CustomScrollView(
             slivers: [
               // Fixed Header
@@ -142,17 +166,21 @@ String _getCurrentMonthYear() {
                 automaticallyImplyLeading: false,
                 flexibleSpace: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          onPressed: () => widget.navigateToPage('프로틴 구매'),
-                          icon: const Icon(Icons.shopping_cart, color: Colors.black54),
+                          onPressed: () =>
+                              widget.navigateToPage('프로틴 구매'),
+                          icon: const Icon(Icons.shopping_cart,
+                              color: Colors.black54),
                         ),
                         Row(
                           children: [
-                            Image.asset('assets/images/logo.png', width: 32, height: 32),
+                            Image.asset('assets/images/logo.png',
+                                width: 32, height: 32),
                             const SizedBox(width: 8),
                             const Text(
                               '프로해빗',
@@ -165,8 +193,10 @@ String _getCurrentMonthYear() {
                           ],
                         ),
                         IconButton(
-                          onPressed: () => widget.navigateToPage('마이 페이지'),
-                          icon: const Icon(Icons.person, color: Colors.black54),
+                          onPressed: () =>
+                              widget.navigateToPage('마이 페이지'),
+                          icon: const Icon(Icons.person,
+                              color: Colors.black54),
                         ),
                       ],
                     ),
@@ -184,7 +214,6 @@ String _getCurrentMonthYear() {
                 ),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    // 🆕 추천 운동 위젯 (Firebase 데이터 사용)
                     _buildRecommendedExerciseWidget(),
                     const SizedBox(height: 24),
                     _buildCalendarWidget(),
@@ -221,69 +250,30 @@ String _getCurrentMonthYear() {
     );
   }
 
-  // 🆕 수정된 추천 운동 위젯 (Firebase 데이터 사용)
   Widget _buildRecommendedExerciseWidget() {
     if (isLoadingRecommendation) {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: primaryColor. withOpacity(0.3), width: 2),
-        ),
-        padding: const EdgeInsets.all(16),
-        height: 200,
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return _buildLoadingWidget();
     }
 
     if (recommendedExercise == null) {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(Icons.fitness_center, size: 48, color: Colors.grey.shade400),
-            const SizedBox(height: 8),
-            Text(
-              '추천 운동을 불러올 수 없습니다',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: _loadRecommendedExercise,
-              child: const Text('다시 시도'),
-            ),
-          ],
-        ),
-      );
+      return _buildErrorWidget('추천 운동을 불러올 수 없습니다', _loadRecommendedExercise);
     }
 
-    final exercise = recommendedExercise!;
+    final exercise = recommendedExercise! ;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primaryColor.withOpacity(0.3), width: 2),
+        border: Border.all(color: primaryColor. withOpacity(0.3), width: 2),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 헤더
           Row(
             children: [
-              Icon(
-                Icons.trending_up,
-                color: primaryColor,
-                size: 20,
-              ),
+              Icon(Icons.trending_up, color: primaryColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 '추천 운동',
@@ -296,19 +286,13 @@ String _getCurrentMonthYear() {
             ],
           ),
           const SizedBox(height: 12),
-          
-          // 경과 일수 알림
           Row(
             children: [
-              Icon(
-                Icons.access_time,
-                color: primaryColor,
-                size: 18,
-              ),
+              Icon(Icons.access_time, color: primaryColor, size: 18),
               const SizedBox(width: 6),
               Text(
-                exercise.daysSinceLastWorkout > 100
-                    ? '${exercise.muscleGroup} 운동을 시작해보세요!'
+                exercise.daysSinceLastWorkout == 0 || exercise.daysSinceLastWorkout > 100
+                    ? '${exercise.muscleGroup} 운동은 어떠신가요?'
                     : '마지막 ${exercise.muscleGroup} 운동 후 ${exercise.daysSinceLastWorkout}일 경과!',
                 style: TextStyle(
                   fontSize: 14,
@@ -319,17 +303,14 @@ String _getCurrentMonthYear() {
             ],
           ),
           const SizedBox(height: 16),
-          
-          // 운동 정보 카드
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: Colors.grey. shade50,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
-                // 운동 이미지
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
@@ -338,18 +319,15 @@ String _getCurrentMonthYear() {
                     color: Colors.grey.shade200,
                     child: exercise.imagePath != null
                         ? Image.asset(
-                            exercise.imagePath!,
+                            exercise. imagePath!,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildPlaceholderIcon();
-                            },
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildPlaceholderIcon(),
                           )
                         : _buildPlaceholderIcon(),
                   ),
                 ),
                 const SizedBox(width: 12),
-                
-                // 운동 정보
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -368,22 +346,20 @@ String _getCurrentMonthYear() {
                           exercise.description!,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade700,
+                            color: Colors. grey.shade700,
                             height: 1.3,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       const SizedBox(height: 8),
-                      
-                      // 부위 태그
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: primaryColor.withOpacity(0.1),
+                          color: primaryColor. withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
@@ -415,15 +391,14 @@ String _getCurrentMonthYear() {
             ),
           ),
           const SizedBox(height: 12),
-          
-          // 루틴에 추가하기 버튼
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
+            child: OutlinedButton. icon(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${exercise.exerciseName}을(를) 루틴에 추가했습니다!'),
+                    content:
+                        Text('${exercise.exerciseName}을(를) 루틴에 추가했습니다!'),
                     duration: const Duration(seconds: 2),
                   ),
                 );
@@ -445,18 +420,16 @@ String _getCurrentMonthYear() {
     );
   }
 
-  Widget _buildPlaceholderIcon() {
-    return Container(
-      color: Colors.grey.shade300,
-      child: Icon(
-        Icons.fitness_center,
-        size: 40,
-        color: Colors.grey.shade600,
-      ),
-    );
-  }
-
+  // 🆕 수정된 캘린더 위젯
   Widget _buildCalendarWidget() {
+    if (isLoadingCalendar) {
+      return _buildLoadingWidget();
+    }
+
+    if (calendarDays.isEmpty) {
+      return _buildErrorWidget('캘린더를 불러올 수 없습니다', _loadCalendarData);
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -473,7 +446,7 @@ String _getCurrentMonthYear() {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '운동 캘린더!',
+                    '운동 캘린더',
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
@@ -481,7 +454,10 @@ String _getCurrentMonthYear() {
                   ),
                   Text(
                     _getCurrentMonthYear(),
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors. grey.shade600,
+                    ),
                   ),
                 ],
               ),
@@ -497,85 +473,16 @@ String _getCurrentMonthYear() {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    onPressed: currentWeek < 2
+                    onPressed: currentWeek < 5
                         ? () => setState(() => currentWeek++)
                         : null,
-                    icon: const Icon(Icons.chevron_right, size: 20),
+                    icon: const Icon(Icons. chevron_right, size: 20),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 8),
                   TextButton(
-                  onPressed: () {
-                    // ✅ 캘린더 모달 표시
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: Text('${_getCurrentMonthYear()} 운동 캘린더'),
-                        content: SizedBox(
-                          width: double.maxFinite,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '이번 달 운동 기록을 확인하세요. 출석한 날은 빨간색으로 표시됩니다.',
-                                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                              ),
-                              const SizedBox(height: 16),
-                              SizedBox(
-                                height: 200,
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                        children: ['일', '월', '화', '수', '목', '금', '토']
-                                            .map(
-                                              (day) => SizedBox(
-                                                width: 40,
-                                                child: Center(
-                                                  child: Text(
-                                                    day,
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            )
-                                            .toList(),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      ...List.generate(
-                                        3,
-                                        (weekIndex) => Padding(
-                                          padding: const EdgeInsets.only(bottom: 4),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                            children: calendarDays
-                                                .sublist(weekIndex * 7, (weekIndex + 1) * 7)
-                                                .map((day) => _buildCalendarDay(day))
-                                                .toList(),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('닫기'),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                    onPressed: () => setState(() => showCalendarModal = true),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: Size. zero,
@@ -585,7 +492,7 @@ String _getCurrentMonthYear() {
                       '전체보기',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: Colors. grey.shade600,
                       ),
                     ),
                   ),
@@ -606,7 +513,9 @@ String _getCurrentMonthYear() {
             child: Column(
               children: [
                 Text(
-                  '🔥 $consecutiveDays일 연속 출석! ',
+                  consecutiveDays == 0
+                      ? '💪 오늘부터 시작해볼까요?'
+                      : '🔥 ${consecutiveDays}일 연속 출석!',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -615,8 +524,13 @@ String _getCurrentMonthYear() {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '꾸준한 운동으로 목표를 달성해보세요',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  consecutiveDays == 0
+                      ? '첫 운동을 시작하면 연속 출석 기록이 시작됩니다'
+                      : '꾸준한 운동으로 목표를 달성해보세요',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
               ],
             ),
@@ -652,28 +566,28 @@ String _getCurrentMonthYear() {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: calendarDays
-              .sublist(start, end)
+              .sublist(start, (end). clamp(0, calendarDays.length))
               .map((day) => _buildCalendarDay(day))
-              . toList(),
+              .toList(),
         ),
       ],
     );
   }
 
   Widget _buildCalendarDay(CalendarDay day) {
-    Color? backgroundColor;
+    Color?  backgroundColor;
     Color textColor = Colors.black87;
     FontWeight fontWeight = FontWeight.normal;
 
     if (day.isToday) {
       backgroundColor = Colors.blue.shade100;
-      textColor = Colors.blue. shade600;
+      textColor = Colors.blue.shade600;
       fontWeight = FontWeight.w500;
     } else if (day.hasWorkout) {
       backgroundColor = primaryColor;
       textColor = Colors.white;
       fontWeight = FontWeight.w500;
-    } else if (!day.isCurrentMonth) {
+    } else if (! day.isCurrentMonth) {
       textColor = Colors.grey.shade400;
     }
 
@@ -697,7 +611,16 @@ String _getCurrentMonthYear() {
     );
   }
 
+  // 🆕 수정된 운동 차트 위젯
   Widget _buildWorkoutChart() {
+    if (isLoadingWeeklyData) {
+      return _buildLoadingWidget();
+    }
+
+    if (weeklyWorkoutData.isEmpty) {
+      return _buildErrorWidget('운동 데이터를 불러올 수 없습니다', _loadWeeklyWorkoutData);
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -719,13 +642,17 @@ String _getCurrentMonthYear() {
               ),
               Row(
                 children: [
-                  Container(width: 12, height: 2, color: primaryColor),
+                  Container(
+                    width: 12,
+                    height: 2,
+                    color: primaryColor,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     '운동시간',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors. grey.shade600,
+                      color: Colors.grey.shade600,
                     ),
                   ),
                 ],
@@ -742,7 +669,10 @@ String _getCurrentMonthYear() {
                   drawVerticalLine: false,
                   horizontalInterval: 30,
                   getDrawingHorizontalLine: (value) {
-                    return FlLine(color: Colors.grey.shade200, strokeWidth: 1);
+                    return FlLine(
+                      color: Colors. grey.shade200,
+                      strokeWidth: 1,
+                    );
                   },
                 ),
                 titlesData: FlTitlesData(
@@ -753,18 +683,12 @@ String _getCurrentMonthYear() {
                       interval: 30,
                       getTitlesWidget: (value, meta) {
                         String text;
-                        if (value == 0)
-                          text = '0분';
-                        else if (value == 30)
-                          text = '30분';
-                        else if (value == 60)
-                          text = '1시간';
-                        else if (value == 120)
-                          text = '2시간';
-                        else if (value >= 180)
-                          text = '3시간+';
-                        else
-                          return Container();
+                        if (value == 0) text = '0분';
+                        else if (value == 30) text = '30분';
+                        else if (value == 60) text = '1시간';
+                        else if (value == 120) text = '2시간';
+                        else if (value >= 180) text = '3시간+';
+                        else return Container();
 
                         return Text(
                           text,
@@ -780,15 +704,15 @@ String _getCurrentMonthYear() {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        if (value.toInt() >= 0 &&
-                            value.toInt() < workoutData.length) {
+                        if (value. toInt() >= 0 &&
+                            value.toInt() < weeklyWorkoutData.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
                             child: Text(
-                              workoutData[value.toInt()].day,
+                              weeklyWorkoutData[value.toInt()]. day,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: Colors. grey.shade600,
                               ),
                             ),
                           );
@@ -814,18 +738,16 @@ String _getCurrentMonthYear() {
                 minX: 0,
                 maxX: 6,
                 minY: 0,
-                maxY: 180,
+                maxY: _getMaxYValue(),
                 lineBarsData: [
                   LineChartBarData(
-                    spots: workoutData
+                    spots: weeklyWorkoutData
                         .asMap()
                         .entries
-                        .map(
-                          (e) => FlSpot(
-                            e.key.toDouble(),
-                            e.value.minutes.toDouble(),
-                          ),
-                        )
+                        .map((e) => FlSpot(
+                              e.key.toDouble(),
+                              e.value. minutes. toDouble(),
+                            ))
                         .toList(),
                     isCurved: true,
                     color: primaryColor,
@@ -863,6 +785,16 @@ String _getCurrentMonthYear() {
     );
   }
 
+   // 최대 Y값 계산
+  double _getMaxYValue() {
+    if (weeklyWorkoutData.isEmpty) return 180;
+    final maxMinutes =
+        weeklyWorkoutData. map((w) => w.minutes).reduce((a, b) => a > b ? a : b);
+    if (maxMinutes == 0) return 180;
+    // 최대값의 120% 또는 최소 180
+    return (maxMinutes * 1.2).clamp(180, double.infinity);
+  }
+
   Widget _buildActionButtons() {
     return Column(
       children: [
@@ -870,7 +802,7 @@ String _getCurrentMonthYear() {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: widget.onNavigateToWorkout,
+            onPressed: () => widget.navigateToPage('운동'),
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
@@ -881,7 +813,7 @@ String _getCurrentMonthYear() {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.fitness_center, size: 20),
+                Icon(Icons. fitness_center, size: 20),
                 SizedBox(width: 8),
                 Text('운동 시작하기'),
               ],
@@ -893,112 +825,7 @@ String _getCurrentMonthYear() {
           width: double.infinity,
           height: 48,
           child: OutlinedButton(
-            onPressed: () {
-              // ✅ 루틴 모달 표시
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('저장된 루틴'),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    child: widget.savedRoutines.isEmpty
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 64,
-                                height: 64,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.fitness_center,
-                                  size: 32,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                '저장된 루틴이 없습니다',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  widget.onNavigateToWorkout();
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primaryColor,
-                                  foregroundColor: Colors.white,
-                                ),
-                                child: const Text('새 루틴 만들기'),
-                              ),
-                            ],
-                          )
-                        : Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '저장된 루틴을 선택하여 운동을 시작하세요.',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(maxHeight: 300),
-                                child: ListView.builder(
-                                  shrinkWrap: true,
-                                  itemCount: widget.savedRoutines.length,
-                                  itemBuilder: (context, index) {
-                                    final routine = widget.savedRoutines[index];
-                                    return Card(
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      child: ListTile(
-                                        title: Text(routine.name),
-                                        subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text('${routine.workouts.length}개 운동'),
-                                            Text(
-                                              '${routine.createdAt.year}-${routine.createdAt.month.toString().padLeft(2, '0')}-${routine.createdAt.day.toString().padLeft(2, '0')} 저장',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        trailing: const Icon(Icons.play_arrow),
-                                        onTap: () {
-                                          Navigator.of(context).pop();
-                                          widget.onStartWorkoutWithRoutine(routine);
-                                        },
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              OutlinedButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  widget.onNavigateToWorkout();
-                                },
-                                child: const Text('새 루틴 만들기'),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              );
-            },
+            onPressed: () => setState(() => showRoutinesModal = true),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.black87,
               side: BorderSide(color: Colors.grey.shade300),
@@ -1022,16 +849,18 @@ String _getCurrentMonthYear() {
 
   Widget _buildBottomNavigation() {
     final items = [
-      {'id': '운동', 'icon': Icons.play_arrow, 'label': '운동'},
+      {'id': '운동', 'icon': Icons. play_arrow, 'label': '운동'},
       {'id': '상태확인', 'icon': Icons. assessment, 'label': '상태확인'},
-      {'id': '성과확인', 'icon': Icons. bar_chart, 'label': '성과확인'},
-      {'id': '식단', 'icon': Icons.restaurant, 'label': '식단'},
+      {'id': '성과확인', 'icon': Icons.bar_chart, 'label': '성과확인'},
+      {'id': '식단', 'icon': Icons. restaurant, 'label': '식단'},
     ];
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200),
+        ),
       ),
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: SafeArea(
@@ -1048,7 +877,8 @@ String _getCurrentMonthYear() {
                 }
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: isActive ? primaryColor : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
@@ -1074,6 +904,247 @@ String _getCurrentMonthYear() {
               ),
             );
           }).toList(),
+        ),
+      ),
+    );
+  }
+
+  // 헬퍼 위젯들
+  Widget _buildLoadingWidget() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      padding: const EdgeInsets.all(16),
+      height: 150,
+      child: const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(String message, VoidCallback onRetry) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('다시 시도'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderIcon() {
+    return Container(
+      color: Colors.grey.shade300,
+      child: Icon(
+        Icons.fitness_center,
+        size: 40,
+        color: Colors.grey.shade600,
+      ),
+    );
+  }
+
+  // 기존의 캘린더 모달, 루틴 모달 등의 나머지 메서드들도 필요하면 추가
+  void _showCalendarModal() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${_getCurrentMonthYear()} 운동 캘린더'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '이번 달 운동 기록을 확인하세요.  출석한 날은 빨간색으로 표시됩니다.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors. grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildFullCalendar(),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFullCalendar() {
+    final weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: weekDays
+              .map((day) => SizedBox(
+                    width: 40,
+                    child: Center(
+                      child: Text(
+                        day,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 8),
+        ... List.generate(
+          (calendarDays. length / 7).ceil(),
+          (weekIndex) {
+            final start = weekIndex * 7;
+            final end = ((weekIndex + 1) * 7).clamp(0, calendarDays.length);
+            if (start >= calendarDays.length) return Container();
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: calendarDays
+                    .sublist(start, end)
+                    .map((day) => _buildCalendarDay(day))
+                    .toList(),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+  void _showRoutinesModal() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('저장된 루틴'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: widget.savedRoutines.isEmpty
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.fitness_center,
+                        size: 32,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '저장된 루틴이 없습니다',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors. grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        widget.onNavigateToWorkout();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('새 루틴 만들기'),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '저장된 루틴을 선택하여 운동을 시작하세요.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 300),
+                      child: ListView. builder(
+                        shrinkWrap: true,
+                        itemCount: widget.savedRoutines.length,
+                        itemBuilder: (context, index) {
+                          final routine = widget. savedRoutines[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              title: Text(routine.name),
+                              subtitle: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment. start,
+                                children: [
+                                  Text('${routine.workouts.length}개 운동'),
+                                  Text(
+                                    '${routine.createdAt.year}-${routine.createdAt. month.toString().padLeft(2, '0')}-${routine.createdAt. day.toString().padLeft(2, '0')} 저장',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              trailing: const Icon(Icons.play_arrow),
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                widget
+                                    .onStartWorkoutWithRoutine(routine);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        widget.onNavigateToWorkout();
+                      },
+                      child: const Text('새 루틴 만들기'),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
