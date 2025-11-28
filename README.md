@@ -1,4 +1,3 @@
 # NEON_fire
 
-첫 commit
-fuck you
+처음으로 만든 앱
