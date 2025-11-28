@@ -16,6 +16,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, Tar
 
 // 플랫폼별 Firebase 설정 정보를 제공하는 클래스
 class DefaultFirebaseOptions {
+  // 실행중인 기기가 안드로이드 인지 아이폰인지 웹인지 firebase설정을 자동으로 골라주는 함수수
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       return web;

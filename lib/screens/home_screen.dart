@@ -1,3 +1,4 @@
+// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:math';
@@ -31,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool showRoutinesModal = false;
   int currentWeek = 0;
   String activeTab = '운동';
-  
+
   final List<WorkoutData> workoutData = [
     WorkoutData(day: '월', minutes: 45),
     WorkoutData(day: '화', minutes: 60),
@@ -61,42 +62,56 @@ class _HomeScreenState extends State<HomeScreen> {
     final today = DateTime.now();
     final currentMonth = today.month - 1;
     final currentYear = today.year;
-    
+
     final firstDay = DateTime(currentYear, currentMonth + 1, 1);
     final lastDay = DateTime(currentYear, currentMonth + 2, 0);
-    
+
     final startDate = firstDay.subtract(Duration(days: firstDay.weekday % 7));
-    
+
     final days = <CalendarDay>[];
     var currentDate = startDate;
     final random = Random();
-    
+
     for (int i = 0; i < 21; i++) {
       final isCurrentMonth = currentDate.month == currentMonth + 1;
-      final isToday = currentDate.year == today.year &&
+      final isToday =
+          currentDate.year == today.year &&
           currentDate.month == today.month &&
           currentDate.day == today.day;
+          currentDate.day == today.day;
       final hasWorkout = random.nextDouble() > 0.6;
-      
-      days.add(CalendarDay(
-        date: currentDate,
-        day: currentDate.day,
-        isCurrentMonth: isCurrentMonth,
-        isToday: isToday,
-        hasWorkout: isCurrentMonth && hasWorkout,
-      ));
-      
+
+      days.add(
+        CalendarDay(
+          date: currentDate,
+          day: currentDate.day,
+          isCurrentMonth: isCurrentMonth,
+          isToday: isToday,
+          hasWorkout: isCurrentMonth && hasWorkout,
+        ),
+      );
+
       currentDate = currentDate.add(const Duration(days: 1));
     }
-    
+
     return days;
   }
 
   String _getCurrentMonthYear() {
     final today = DateTime.now();
     const monthNames = [
-      '1월', '2월', '3월', '4월', '5월', '6월',
-      '7월', '8월', '9월', '10월', '11월', '12월'
+      '1월',
+      '2월',
+      '3월',
+      '4월',
+      '5월',
+      '6월',
+      '7월',
+      '8월',
+      '9월',
+      '10월',
+      '11월',
+      '12월',
     ];
     return '${today.year} ${monthNames[today.month - 1]}';
   }
@@ -119,13 +134,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 automaticallyImplyLeading: false,
                 flexibleSpace: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
                           onPressed: () => widget.navigateToPage('프로틴 구매'),
-                          icon: const Icon(Icons.shopping_cart, color: Colors.black54),
+                          icon: const Icon(
+                            Icons.shopping_cart,
+                            color: Colors.black54,
+                          ),
                         ),
                         Row(
                           children: [
@@ -136,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w500,
-                                color: Colors. black87,
+                                color: Colors.black87,
                               ),
                             ),
                           ],
@@ -400,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '운동 캘린더',
+                    '운동 캘린더!',
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
@@ -408,10 +429,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Text(
                     _getCurrentMonthYear(),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors. grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -431,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? () => setState(() => currentWeek++)
                         : null,
                     icon: const Icon(Icons.chevron_right, size: 20),
-                    padding: EdgeInsets. zero,
+                    padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 8),
@@ -477,10 +495,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 4),
                 Text(
                   '꾸준한 운동으로 목표를 달성해보세요',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
@@ -492,7 +507,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCalendarGrid(int start, int end) {
     final weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-    
+
     return Column(
       children: [
         Row(
@@ -525,7 +540,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCalendarDay(CalendarDay day) {
-    Color?  backgroundColor;
+    Color? backgroundColor;
     Color textColor = Colors.black87;
     FontWeight fontWeight = FontWeight.normal;
 
@@ -537,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor = primaryColor;
       textColor = Colors.white;
       fontWeight = FontWeight.w500;
-    } else if (! day.isCurrentMonth) {
+    } else if (!day.isCurrentMonth) {
       textColor = Colors.grey.shade400;
     }
 
@@ -565,6 +580,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -572,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment. spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 '한 주간 운동시간',
@@ -583,11 +599,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Row(
                 children: [
-                  Container(
-                    width: 12,
-                    height: 2,
-                    color: primaryColor,
-                  ),
+                  Container(width: 12, height: 2, color: primaryColor),
                   const SizedBox(width: 8),
                   Text(
                     '운동시간',
@@ -610,10 +622,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   drawVerticalLine: false,
                   horizontalInterval: 30,
                   getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors.grey.shade200,
-                      strokeWidth: 1,
-                    );
+                    return FlLine(color: Colors.grey.shade200, strokeWidth: 1);
                   },
                 ),
                 titlesData: FlTitlesData(
@@ -624,13 +633,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       interval: 30,
                       getTitlesWidget: (value, meta) {
                         String text;
-                        if (value == 0) text = '0분';
-                        else if (value == 30) text = '30분';
-                        else if (value == 60) text = '1시간';
-                        else if (value == 120) text = '2시간';
-                        else if (value >= 180) text = '3시간+';
-                        else return Container();
-                        
+                        if (value == 0)
+                          text = '0분';
+                        else if (value == 30)
+                          text = '30분';
+                        else if (value == 60)
+                          text = '1시간';
+                        else if (value == 120)
+                          text = '2시간';
+                        else if (value >= 180)
+                          text = '3시간+';
+                        else
+                          return Container();
+
                         return Text(
                           text,
                           style: TextStyle(
@@ -645,14 +660,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        if (value. toInt() >= 0 && value.toInt() < workoutData.length) {
+                        if (value.toInt() >= 0 &&
+                            value.toInt() < workoutData.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
                             child: Text(
                               workoutData[value.toInt()].day,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors. grey.shade600,
+                                color: Colors.grey.shade600,
                               ),
                             ),
                           );
@@ -684,10 +700,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     spots: workoutData
                         .asMap()
                         .entries
-                        .map((e) => FlSpot(
-                              e.key.toDouble(),
-                              e.value. minutes.toDouble(),
-                            ))
+                        .map(
+                          (e) => FlSpot(
+                            e.key.toDouble(),
+                            e.value.minutes.toDouble(),
+                          ),
+                        )
                         .toList(),
                     isCurved: true,
                     color: primaryColor,
@@ -743,7 +761,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons. fitness_center, size: 20),
+                Icon(Icons.fitness_center, size: 20),
                 SizedBox(width: 8),
                 Text('운동 시작하기'),
               ],
@@ -788,9 +806,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade200),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: SafeArea(
@@ -851,10 +867,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 '이번 달 운동 기록을 확인하세요.  출석한 날은 빨간색으로 표시됩니다.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey. shade600,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 16),
               _buildFullCalendar(),
@@ -873,28 +886,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildFullCalendar() {
     final weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-    
+
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: weekDays
-              .map((day) => SizedBox(
-                    width: 40,
-                    child: Center(
-                      child: Text(
-                        day,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
+              .map(
+                (day) => SizedBox(
+                  width: 40,
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
         ),
         const SizedBox(height: 8),
-        ... List.generate(
+        ...List.generate(
           3,
           (weekIndex) => Padding(
             padding: const EdgeInsets.only(bottom: 4),
@@ -972,9 +987,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 300),
                       child: ListView.builder(
+                      child: ListView.builder(
                         shrinkWrap: true,
                         itemCount: widget.savedRoutines. length,
                         itemBuilder: (context, index) {
+                          final routine = widget.savedRoutines[index];
                           final routine = widget.savedRoutines[index];
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
