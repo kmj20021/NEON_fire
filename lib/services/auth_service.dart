@@ -1,4 +1,3 @@
-import 'package:neon_fire/core/firebase/firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthService {

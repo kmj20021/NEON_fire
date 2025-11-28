@@ -18,8 +18,8 @@ final muscleGroups = [
 
     final batch = _db.batch();
     for (var mg in muscleGroups) {
-      final docRef = _db.collection('muscle_groups'). doc('mg_${mg['id']}');
-      batch. set(docRef, mg);
+      final docRef = _db.collection('muscle_groups'). doc('mg_${mg['id']}'); //colection = 폴더, doc = 파일
+      batch. set(docRef, mg); //문서 생성, 덮어쓰기
     }
     await batch.commit();
     print('✅ 근육 그룹 초기화 완료');
