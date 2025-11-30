@@ -5,9 +5,12 @@ import 'package:neon_fire/models/saved_routine.dart';
 import 'package:neon_fire/models/home_models/calendar_day.dart';
 import 'package:neon_fire/models/home_models/workout_stats_model.dart';
 import 'package:neon_fire/models/home_models/recommended_exercise_model.dart';
+import 'package:neon_fire/models/exercise_models/exercise_model.dart';
 import 'package:neon_fire/services/home_services/recommendation_service_v2.dart';
 import 'package:neon_fire/services/home_services/workout_stats_service.dart';
 import 'package:neon_fire/services/home_services/calender_service.dart';
+import 'package:neon_fire/services/exercise_services/routine_service.dart';
+import 'package:neon_fire/services/exercise_services/exercise_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userId; 
@@ -37,6 +40,8 @@ class _HomeScreenState extends State<HomeScreen> {
   late final CalendarService _calendarService = CalendarService();
   late final RecommendationServiceV2 _recommendationService =
       RecommendationServiceV2();
+  late final RoutineService _routineService = RoutineService();
+  late final ExerciseService _exerciseService = ExerciseService();
 
   // 🆕 Firebase에서 가져올 데이터
   late List<CalendarDay> calendarDays = [];
@@ -48,6 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isLoadingCalendar = true;
   bool isLoadingWeeklyData = true;
   bool isLoadingRecommendation = true;
+  
+  // 루틴 관련
+  List<SavedRoutine> userRoutines = [];
+  String? expandedRoutineId;
 
   bool showCalendarModal = false;
   bool showRoutinesModal = false;
@@ -943,7 +952,7 @@ class _HomeScreenState extends State<HomeScreen> {
           width: double.infinity,
           height: 48,
           child: OutlinedButton(
-            onPressed: () => setState(() => showRoutinesModal = true),
+            onPressed: _showRoutinesModal,
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.black87,
               side: BorderSide(color: Colors.grey.shade300),
@@ -1080,192 +1089,502 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 기존의 캘린더 모달, 루틴 모달 등의 나머지 메서드들도 필요하면 추가
-  void _showCalendarModal() {
+  void _showRoutinesModal() async {
+    print('═══════════════════════════════════════');
+    print('🔵 루틴 모달 열기 시작');
+    print('  - userId: ${widget.userId}');
+    print('═══════════════════════════════════════');
+    
+    // 로딩 다이얼로그 표시
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${_getCurrentMonthYear()} 운동 캘린더'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '이번 달 운동 기록을 확인하세요.  출석한 날은 빨간색으로 표시됩니다.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors. grey.shade600,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    // Firebase에서 루틴 목록 가져오기
+    print('🔄 루틴 불러오기 시작...');
+    final routines = await _routineService.getUserRoutines(widget.userId);
+    print('✅ 루틴 ${routines.length}개 불러옴');
+    
+    if (routines.isNotEmpty) {
+      print('📋 불러온 루틴 목록:');
+      for (var i = 0; i < routines.length; i++) {
+        print('  ${i + 1}. ${routines[i].name} (${routines[i].workouts.length}개 운동)');
+      }
+    } else {
+      print('⚠️ 저장된 루틴이 없습니다!');
+      print('  팁: 운동 화면에서 루틴을 저장해보세요.');
+    }
+    print('═══════════════════════════════════════');
+    
+    if (!mounted) return;
+    
+    // 로딩 다이얼로그 닫기
+    Navigator.of(context).pop();
+    
+    setState(() {
+      userRoutines = routines;
+      expandedRoutineId = null;
+    });
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+              maxWidth: MediaQuery.of(context).size.width * 1.0,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 헤더
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.folder_open, color: primaryColor, size: 24),
+                          const SizedBox(width: 8),
+                          const Text(
+                            '저장된 루틴',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                _buildFullCalendar(),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    '루틴을 선택하여 운동을 시작하세요',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 루틴 목록
+                  Expanded(
+                    child: userRoutines.isEmpty
+                        ? _buildEmptyRoutineState()
+                        : ListView.builder(
+                            itemCount: userRoutines.length,
+                            itemBuilder: (context, index) {
+                              final routine = userRoutines[index];
+                              return _buildRoutineItem(
+                                routine,
+                                setDialogState,
+                              );
+                            },
+                          ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 하단 버튼
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            widget.onNavigateToWorkout();
+                          },
+                          icon: const Icon(Icons.add, size: 20),
+                          label: const Text('루틴 만들기'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(color: Colors.grey.shade300),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: expandedRoutineId == null
+                              ? null
+                              : () {
+                                  final selectedRoutine = userRoutines.firstWhere(
+                                    (r) => r.id == expandedRoutineId,
+                                  );
+                                  Navigator.of(context).pop();
+                                  widget.onStartWorkoutWithRoutine(selectedRoutine);
+                                },
+                          icon: const Icon(Icons.fitness_center, size: 20),
+                          label: const Text('루틴으로 운동하기'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('닫기'),
+      ),
+    );
+  }
+
+  Widget _buildEmptyRoutineState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.folder_off,
+              size: 40,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '저장된 루틴이 없습니다',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '새로운 루틴을 만들어보세요!',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFullCalendar() {
-    final weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+  Widget _buildRoutineItem(SavedRoutine routine, StateSetter setDialogState) {
+    final isExpanded = expandedRoutineId == routine.id;
 
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: weekDays
-              .map((day) => SizedBox(
-                    width: 40,
-                    child: Center(
-                      child: Text(
-                        day,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ))
-              .toList(),
-        ),
-        const SizedBox(height: 8),
-        ... List.generate(
-          (calendarDays. length / 7).ceil(),
-          (weekIndex) {
-            final start = weekIndex * 7;
-            final end = ((weekIndex + 1) * 7).clamp(0, calendarDays.length);
-            if (start >= calendarDays.length) return Container();
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: calendarDays
-                    .sublist(start, end)
-                    .map((day) => _buildCalendarDay(day))
-                    .toList(),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-  void _showRoutinesModal() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('저장된 루틴'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: widget.savedRoutines.isEmpty
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.fitness_center,
-                        size: 32,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '저장된 루틴이 없습니다',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors. grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onNavigateToWorkout();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('새 루틴 만들기'),
-                    ),
-                  ],
-                )
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '저장된 루틴을 선택하여 운동을 시작하세요.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 300),
-                      child: ListView. builder(
-                        shrinkWrap: true,
-                        itemCount: widget.savedRoutines.length,
-                        itemBuilder: (context, index) {
-                          final routine = widget. savedRoutines[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              title: Text(routine.name),
-                              subtitle: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment. start,
-                                children: [
-                                  Text('${routine.workouts.length}개 운동'),
-                                  Text(
-                                    '${routine.createdAt.year}-${routine.createdAt. month.toString().padLeft(2, '0')}-${routine.createdAt. day.toString().padLeft(2, '0')} 저장',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              trailing: const Icon(Icons.play_arrow),
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                widget
-                                    .onStartWorkoutWithRoutine(routine);
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    OutlinedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onNavigateToWorkout();
-                      },
-                      child: const Text('새 루틴 만들기'),
-                    ),
-                  ],
-                ),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: isExpanded ? 2 : 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isExpanded ? primaryColor : Colors.grey.shade200,
+          width: isExpanded ? 2 : 1,
         ),
       ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () {
+              setDialogState(() {
+                setState(() {
+                  expandedRoutineId = isExpanded ? null : routine.id;
+                });
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          routine.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today,
+                                size: 12, color: Colors.grey.shade600),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                '${routine.createdAt.year}.${routine.createdAt.month.toString().padLeft(2, '0')}.${routine.createdAt.day.toString().padLeft(2, '0')}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Icon(Icons.list,
+                                size: 12, color: Colors.grey.shade600),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                '${routine.workouts.length}개 운동',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 삭제 버튼
+                  IconButton(
+                    onPressed: () => _deleteRoutine(routine, setDialogState),
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: Colors.red.shade400,
+                    ),
+                    tooltip: '루틴 삭제',
+                  ),
+                  // 펼치기/접기 아이콘
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.grey.shade600,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // 확장 영역 - 운동 목록
+          if (isExpanded) _buildExpandedRoutineContent(routine),
+        ],
+      ),
     );
+  }
+
+  Widget _buildExpandedRoutineContent(SavedRoutine routine) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(12),
+          bottomRight: Radius.circular(12),
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          Text(
+            '운동 목록',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          FutureBuilder<List<ExerciseModel>>(
+            future: _exerciseService.getExercisesByIds(routine.workouts),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                print('❌ 운동 정보 로드 에러: ${snapshot.error}');
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '운동 정보를 불러오는 중 오류가 발생했습니다',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                );
+              }
+
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                print('⚠️ 운동 정보 없음');
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '이 루틴에 등록된 운동이 없습니다',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                );
+              }
+
+              final exercises = snapshot.data!;
+              print('✅ 운동 정보 ${exercises.length}개 로드됨');
+              
+              return ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxHeight: 300, // 최대 높이 제한
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: exercises.length,
+                  itemBuilder: (context, index) {
+                    final exercise = exercises[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: primaryColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  exercise.name,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  exercise.bodyPart,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteRoutine(SavedRoutine routine, StateSetter setDialogState) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('루틴 삭제'),
+        content: Text('\'${routine.name}\' 루틴을 삭제하시겠습니까?\n삭제된 루틴은 복구할 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await _routineService.deleteRoutine(widget.userId, routine.id);
+      
+      if (success) {
+        setDialogState(() {
+          setState(() {
+            userRoutines.removeWhere((r) => r.id == routine.id);
+            if (expandedRoutineId == routine.id) {
+              expandedRoutineId = null;
+            }
+          });
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('루틴이 삭제되었습니다')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('루틴 삭제에 실패했습니다'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   /// 주간 운동 요약 모달 표시
