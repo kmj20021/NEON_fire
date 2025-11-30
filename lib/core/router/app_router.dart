@@ -102,11 +102,14 @@ class AppRouter {
                   debugPrint('알 수 없는 페이지: $page');
               }
             },
-            savedRoutines: const [], // TODO: 실제 저장된 루틴 불러오기
+            savedRoutines: const [], // 더 이상 사용되지 않음 (Firebase에서 직접 로드)
             onStartWorkoutWithRoutine: (SavedRoutine routine) {
-              // TODO: 루틴으로 운동 시작
+              // 루틴의 운동 ID 리스트를 extra로 전달하여 active_workout으로 이동
               debugPrint('루틴으로 운동 시작: ${routine.name}');
-              context.go('/workout');
+              context.go('/active_workout', extra: {
+                'workoutIds': routine.workouts,
+                'routineName': routine.name,
+              });
             },
           );
         },
@@ -145,8 +148,19 @@ class AppRouter {
           final user = FirebaseAuth.instance.currentUser;
           if (user == null) return const LoginScreen();
           
-          // extra로 전달받은 운동 ID 리스트
-          final selectedWorkoutIds = state.extra as List<int>?;
+          // extra로 전달받은 데이터
+          final extraData = state.extra;
+          List<int>? selectedWorkoutIds;
+          String? routineName;
+          
+          if (extraData is Map<String, dynamic>) {
+            // 루틴으로부터 시작한 경우
+            selectedWorkoutIds = (extraData['workoutIds'] as List<dynamic>?)?.cast<int>();
+            routineName = extraData['routineName'] as String?;
+          } else if (extraData is List<int>) {
+            // 직접 선택한 운동으로 시작한 경우
+            selectedWorkoutIds = extraData;
+          }
           
           // 운동이 선택되지 않았으면 workout 페이지로 리다이렉트
           if (selectedWorkoutIds == null || selectedWorkoutIds.isEmpty) {
@@ -161,6 +175,14 @@ class AppRouter {
           return ActiveWorkoutScreen(
             userId: user.uid,
             selectedWorkouts: selectedWorkoutIds,
+            selectedRoutine: routineName != null
+                ? SavedRoutine(
+                    id: '',
+                    name: routineName,
+                    workouts: selectedWorkoutIds,
+                    createdAt: DateTime.now(),
+                  )
+                : null,
             onBack: () {
               context.go('/workout');
             },

@@ -59,7 +59,7 @@ class ExerciseService {
     }
   }
 
-  /// 특정 ID 목록의 운동들 가져오기
+  /// 특정 ID 목록의 운동들 가져오기 (순서 유지)
   Future<List<ExerciseModel>> getExercisesByIds(List<int> ids) async {
     try {
       if (ids.isEmpty) return [];
@@ -69,8 +69,15 @@ class ExerciseService {
           .where('id', whereIn: ids)
           .get();
 
-      return snapshot.docs
-          . map((doc) => ExerciseModel.fromFirestore(doc))
+      final exercisesMap = {
+        for (var doc in snapshot.docs)
+          ExerciseModel.fromFirestore(doc).id: ExerciseModel.fromFirestore(doc)
+      };
+
+      // ids 순서대로 정렬하여 반환
+      return ids
+          .where((id) => exercisesMap.containsKey(id))
+          .map((id) => exercisesMap[id]!)
           .toList();
     } catch (e) {
       print('운동 ID 조회 실패: $e');

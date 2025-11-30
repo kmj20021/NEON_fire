@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:neon_fire/models/exercise_models/exercise_model.dart';
 import 'package:neon_fire/models/saved_routine.dart';
+import 'package:neon_fire/models/exercise_models/routine_model.dart';
 import 'package:neon_fire/services/exercise_services/exercise_service.dart';
 import 'package:neon_fire/services/exercise_services/routine_service.dart';
 
@@ -44,6 +45,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   ExerciseModel? selectedExercise;
   bool showDetailModal = false;
   bool showSaveRoutineModal = false;
+  List<RoutineExerciseItem> routineExerciseItems = [];
 
   @override
   void initState() {
@@ -118,8 +120,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void _showExerciseDetail(ExerciseModel exercise) {
     setState(() {
       selectedExercise = exercise;
-      showDetailModal = true;
     });
+    _showDetailModalDialog();
   }
 
   Future<void> _saveRoutine() async {
@@ -130,37 +132,51 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       return;
     }
 
-    setState(() => showSaveRoutineModal = true);
+    // 선택된 운동들을 RoutineExerciseItem 리스트로 변환
+    routineExerciseItems = selectedWorkouts.asMap().entries.map((entry) {
+      final exercise = allExercises.firstWhere(
+        (e) => e.id == entry.value,
+        orElse: () => allExercises.first,
+      );
+      return RoutineExerciseItem(
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        bodyPart: exercise.bodyPart,
+        order: entry.key,
+      );
+    }).toList();
+
+    _showSaveRoutineDialog();
   }
 
   Future<void> _confirmSaveRoutine() async {
     if (_routineNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context). showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('루틴 이름을 입력해주세요.')),
       );
       return;
     }
 
+    // 순서대로 정렬된 운동 ID 리스트
+    routineExerciseItems.sort((a, b) => a.order.compareTo(b.order));
+    final orderedWorkoutIds = routineExerciseItems.map((e) => e.exerciseId).toList();
+
     final routine = SavedRoutine(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: _routineNameController.text.trim(),
-      workouts: List. from(selectedWorkouts),
+      workouts: orderedWorkoutIds,
       createdAt: DateTime.now(),
     );
 
     final routineId = await _routineService.saveRoutine(widget.userId, routine);
 
     if (routineId != null) {
-      setState(() {
-        showSaveRoutineModal = false;
-        _routineNameController.clear();
-        selectedWorkouts.clear();
-      });
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('루틴이 저장되었습니다!')),
         );
+        // 저장 후 운동 시작 확인 다이얼로그 표시
+        _showStartWorkoutConfirmDialog(orderedWorkoutIds);
       }
     } else {
       if (mounted) {
@@ -735,142 +751,268 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
   }
 
-  void _showSaveRoutineModalDialog() {
+  void _showSaveRoutineDialog() {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '루틴 저장하기',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight. bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '선택한 운동들을 루틴으로 저장합니다.  루틴 이름을 입력해주세요.',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 16),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.9,  // 화면 너비의 90%
+            height: MediaQuery.of(context).size.height * 0.8, // 화면 높이의 80%
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        '루틴 저장하기',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _routineNameController.clear();
+                        },
+                        icon: const Icon(Icons.close),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '운동 순서를 변경하려면 꾹 누르고 드래그하세요',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 16),
 
-              // Selected Exercises
-              Text(
-                '선택된 운동 (${selectedWorkouts.length}개)',
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 160),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: selectedWorkouts.length,
-                  itemBuilder: (context, index) {
-                    final workoutId = selectedWorkouts[index];
-                    final exercise = allExercises.firstWhere(
-                      (e) => e.id == workoutId,
-                      orElse: () => allExercises.first,
-                    );
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(8),
+                  // Reorderable Exercise List
+                  Text(
+                    '선택된 운동 (${routineExerciseItems.length}개)',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 700), // 운동 리스트 높이 증가
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
+                        border: Border.all(color: Colors.grey.shade300),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.check_circle,
-                              color: Colors.green, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      child: ReorderableListView.builder(
+                        shrinkWrap: true,
+                        itemCount: routineExerciseItems.length,
+                        onReorder: (oldIndex, newIndex) {
+                          setDialogState(() {
+                            if (newIndex > oldIndex) {
+                              newIndex -= 1;
+                            }
+                            final item = routineExerciseItems.removeAt(oldIndex);
+                            routineExerciseItems.insert(newIndex, item);
+                            // 순서 업데이트
+                            for (int i = 0; i < routineExerciseItems.length; i++) {
+                              routineExerciseItems[i].order = i;
+                            }
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          final item = routineExerciseItems[index];
+                          return Container(
+                            key: ValueKey(item.exerciseId),
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
                               children: [
-                                Text(
-                                  exercise.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
+                                Icon(Icons.drag_handle,
+                                    color: Colors.grey.shade400, size: 20),
+                                const SizedBox(width: 8),
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: primaryColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                Text(
-                                  exercise.bodyPart,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.exerciseName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      Text(
+                                        item.bodyPart,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Routine Name Input
+                  const Text(
+                    '루틴 이름',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _routineNameController,
+                    decoration: InputDecoration(
+                      hintText: '예: 상체 운동 루틴',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                    ),
+                    maxLength: 20,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _routineNameController.clear();
+                          },
+                          child: const Text('취소'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _confirmSaveRoutine();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
                           ),
-                        ],
+                          child: const Text('저장하기'),
+                        ),
                       ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Routine Name Input
-              const Text(
-                '루틴 이름',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _routineNameController,
-                decoration: InputDecoration(
-                  hintText: '예: 상체 운동 루틴',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                ),
-                maxLength: 20,
-              ),
-              const SizedBox(height: 16),
-
-              // Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        _routineNameController.clear();
-                      },
-                      child: const Text('취소'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        _confirmSaveRoutine();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('저장하기'),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showStartWorkoutConfirmDialog(List<int> workoutIds) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: primaryColor, size: 28),
+            const SizedBox(width: 8),
+            const Text('루틴 저장 완료!'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '이 루틴으로 운동을 시작할까요?',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '지금 바로 운동을 시작하거나, 나중에 시작할 수 있습니다.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // 체크박스 해제 및 초기화
+              setState(() {
+                selectedWorkouts.clear();
+                _routineNameController.clear();
+              });
+            },
+            child: Text(
+              '나중에 하기',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // 운동 시작
+              setState(() {
+                _routineNameController.clear();
+              });
+              widget.onStartWorkout(workoutIds);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('운동 시작하기'),
+          ),
+        ],
       ),
     );
   }
