@@ -6,14 +6,30 @@ import 'package:neon_fire/screens/Login_page.dart';
 import 'package:neon_fire/screens/home_screen.dart';
 import 'package:neon_fire/screens/workout_screen.dart';
 import 'package:neon_fire/models/saved_routine.dart';
+import 'package:neon_fire/screens/active_workout_screen.dart';
+
+/// Firebase Auth 상태 변화를 감지하는 ChangeNotifier
+class AuthNotifier extends ChangeNotifier {
+  AuthNotifier() {
+    // Firebase Auth 상태 변화를 감지하여 리스너들에게 알림
+    FirebaseAuth.instance.authStateChanges().listen((_) {
+      notifyListeners();
+    });
+  }
+}
 
 /// 앱의 모든 라우트를 관리하는 GoRouter 설정
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
+  static final _authNotifier = AuthNotifier();
 
   static final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     debugLogDiagnostics: true,
+    
+    // 오류 수정: 로그인 상태가 변경될 때마다 redirect가 다시 실행되도록
+    // refreshListenable을 추가하여 authStateChanges를 감지
+    refreshListenable: _authNotifier,
     
     // 초기 경로
     initialLocation: '/',
@@ -23,13 +39,17 @@ class AppRouter {
       final user = FirebaseAuth.instance.currentUser;
       final isLoggingIn = state.matchedLocation == '/';
       
+      debugPrint('🔄 Redirect 체크: user=${user?.uid}, location=${state.matchedLocation}');
+      
       // 로그인 안되어 있으면 로그인 페이지로
       if (user == null && !isLoggingIn) {
+        debugPrint('❌ 로그인 안됨 → 로그인 페이지로');
         return '/';
       }
       
       // 로그인 되어있는데 로그인 페이지에 있으면 홈으로
       if (user != null && isLoggingIn) {
+        debugPrint('✅ 로그인됨 → 홈으로 이동');
         return '/home';
       }
       
@@ -111,8 +131,43 @@ class AppRouter {
               }
             },
             onStartWorkout: (List<int> workoutIds) {
-              // TODO: 운동 시작 로직
-              debugPrint('운동 시작: $workoutIds');
+              // 선택한 운동 데이터를 active_workout 페이지로 전달
+              context.go('/active_workout', extra: workoutIds);
+            },
+          );
+        },
+      ),
+
+      GoRoute(
+        path: '/active_workout',
+        name: 'active_workout',
+        builder: (context, state) {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) return const LoginScreen();
+          
+          // extra로 전달받은 운동 ID 리스트
+          final selectedWorkoutIds = state.extra as List<int>?;
+          
+          // 운동이 선택되지 않았으면 workout 페이지로 리다이렉트
+          if (selectedWorkoutIds == null || selectedWorkoutIds.isEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              context.go('/workout');
+            });
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          
+          return ActiveWorkoutScreen(
+            userId: user.uid,
+            selectedWorkouts: selectedWorkoutIds,
+            onBack: () {
+              context.go('/workout');
+            },
+            navigateToPage: (String page) {
+              if (page == '홈') {
+                context.go('/home');
+              }
             },
           );
         },

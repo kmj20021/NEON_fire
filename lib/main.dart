@@ -1,8 +1,8 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'core/firebase/firebase_options.dart';
-import 'core/router/app_router.dart';
+import 'package:neon_fire/core/firebase/firebase_options.dart';
+import 'package:neon_fire/core/router/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:neon_fire/models/exercise_models/exercise_model.dart';
 import 'package:neon_fire/models/saved_routine.dart';
-import 'package:neon_fire/services/exercise_service/exercise_service.dart';
-import 'package:neon_fire/services/exercise_service/routine_service.dart';
+import 'package:neon_fire/services/exercise_services/exercise_service.dart';
+import 'package:neon_fire/services/exercise_services/routine_service.dart';
 
 class WorkoutScreen extends StatefulWidget {
   final String userId;
@@ -258,7 +258,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 padding: const EdgeInsets.only(
                   left: 16,
                   right: 16,
-                  top: 16,
+                  top: 16, // 수정됨: 운동 검색하기 박스 아래 여백 축소 (16 -> 8)
                   bottom: 180,
                 ),
                 sliver: isLoading
@@ -302,21 +302,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
           // Fixed Bottom Actions
           Positioned(
-            bottom: 80,
+            bottom: 70,
             left: 0,
             right: 0,
             child: _buildBottomActions(),
-          ),
-
-          // Floating Protein Button
-          Positioned(
-            bottom: 80,
-            right: 16,
-            child: FloatingActionButton(
-              onPressed: () => widget.navigateToPage('프로틴 구매'),
-              backgroundColor: primaryColor,
-              child: const Icon(Icons.shopping_bag, color: Colors.white),
-            ),
           ),
 
           // Bottom Navigation
@@ -496,8 +485,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                           : () => widget.onStartWorkout(selectedWorkouts),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
-                        foregroundColor: Colors. white,
-                        disabledBackgroundColor: Colors. grey.shade300,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey.shade300,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -910,7 +899,12 @@ class _CategorySearchDelegate extends SliverPersistentHeaderDelegate {
       BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.only(
+        left: 16,    // 여백조절: 운동부위 박스 왼쪽 여백
+        right: 16,   // 여백조절: 운동부위 박스 오른쪽 여백
+        top: 8,      // 여백조절: 운동부위 박스 상단 여백
+        bottom: 0,   // 여백조절: 운동부위 박스 하단 여백
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -921,9 +915,9 @@ class _CategorySearchDelegate extends SliverPersistentHeaderDelegate {
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 12), // 여백조절: '운동 부위' 텍스트와 카테고리 칩 사이 간격
           SizedBox(
-            height: 40,
+            height: 40, // 여백조절: 카테고리 칩 영역 높이
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: categories.length,
@@ -932,7 +926,7 @@ class _CategorySearchDelegate extends SliverPersistentHeaderDelegate {
                 final isSelected = selectedCategory == category;
 
                 return Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(right: 8), // 여백조절: 카테고리 칩들 사이 간격
                   child: ChoiceChip(
                     label: Text(category),
                     selected: isSelected,
@@ -953,7 +947,7 @@ class _CategorySearchDelegate extends SliverPersistentHeaderDelegate {
               },
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8), // 여백조절: 카테고리 칩과 검색박스 사이 간격
           TextField(
             controller: searchController,
             onChanged: onSearchChanged,
@@ -964,9 +958,9 @@ class _CategorySearchDelegate extends SliverPersistentHeaderDelegate {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
-              contentPadding: const EdgeInsets. symmetric(
-                horizontal: 16,
-                vertical: 12,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16, // 여백조절: 검색박스 내부 좌우 여백
+                vertical: 3,    // 여백조절: 검색박스 내부 상하 여백 축소 (12 -> 8)
               ),
             ),
           ),
@@ -976,10 +970,10 @@ class _CategorySearchDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => 200;
+  double get maxExtent => 150; // 수정됨: 검색박스 패딩 축소로 전체 높이 조정 (165 -> 157)
 
   @override
-  double get minExtent => 200;
+  double get minExtent => 150; // 수정됨: 검색박스 패딩 축소로 전체 높이 조정 (165 -> 157)
 
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
