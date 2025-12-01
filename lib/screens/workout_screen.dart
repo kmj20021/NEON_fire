@@ -215,9 +215,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
-      body: Stack(
+    // 🔙 안드로이드 뒤로가기 버튼 처리: 홈 화면으로 이동
+    return PopScope(
+      canPop: false, // 기본 뒤로가기 동작 비활성화
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          widget.onBack(); // 홈 화면으로 이동
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAFAFA),
+        body: Stack(
         children: [
           // Main Content
           CustomScrollView(
@@ -333,6 +341,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           ),
         ],
       ),
+      ), // PopScope 닫기
     );
   }
 

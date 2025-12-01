@@ -378,10 +378,18 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
-      resizeToAvoidBottomInset: false, // 키보드가 올라와도 네비게이션바 고정
-      body: Stack(
+    // 🔙 안드로이드 뒤로가기 버튼 처리: 운동 종료 확인
+    return PopScope(
+      canPop: false, // 기본 뒤로가기 동작 비활성화
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          _showExitConfirmation(); // 운동 종료 확인 다이얼로그 표시
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAFAFA),
+        resizeToAvoidBottomInset: false, // 키보드가 올라와도 네비게이션바 고정
+        body: Stack(
         children: [
           CustomScrollView(
             slivers: [
@@ -527,6 +535,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
             ),
         ],
       ),
+      ), // PopScope 닫기
     );
   }
 
