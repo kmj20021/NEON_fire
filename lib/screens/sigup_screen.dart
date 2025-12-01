@@ -352,12 +352,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('회원가입이 완료되었습니다.')));
-
-      // 회원가입 완료 후 로그인 화면으로 되돌아가기
-      Navigator.pop(context);
+      // 회원가입 성공 다이얼로그 표시
+      _showSignUpSuccessDialog(email);
     } on FirebaseAuthException catch (e) {
       setState(() {
         _errorMessage = e.message ?? '회원가입 중 오류가 발생했습니다.';
@@ -371,6 +367,125 @@ class _SignUpScreenState extends State<SignUpScreen> {
         setState(() => _isSigningUp = false);
       }
     }
+  }
+
+  // -----------------------------
+  // 회원가입 성공 다이얼로그
+  // -----------------------------
+  void _showSignUpSuccessDialog(String email) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        const accent = Color(0xFFFF5757);
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 성공 아이콘
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(36),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // 타이틀
+                const Text(
+                  '회원가입 완료!',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                // 설명
+                Text(
+                  '환영합니다! 🎉\n$email으로\n회원가입이 완료되었습니다.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF666666),
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                // 안내 메시지
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Color(0xFF666666),
+                        size: 18,
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '가입하신 이메일과 비밀번호로 로그인해주세요.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF666666),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // 로그인 버튼
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context); // 다이얼로그 닫기
+                      Navigator.pop(context); // 회원가입 화면 닫기 (로그인 화면으로)
+                    },
+                    child: const Text(
+                      '로그인 하러 가기',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   // -----------------------------

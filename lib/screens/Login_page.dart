@@ -100,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _openForgotPassword() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+      MaterialPageRoute(builder: (_) => const ForgotPwScreen()),
     );
   }
 
@@ -142,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // 오류 수정: assets/icons/icon.png 경로 대신 
+                    // 오류 수정: assets/icons/icon.png 경로 대신
                     // Material Icon을 사용하여 이미지 로딩 실패 방지
                     Container(
                       width: 48,
