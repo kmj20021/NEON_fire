@@ -30,6 +30,26 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // -----------------------------
+  // 로그아웃 처리
+  // -----------------------------
+  Future<void> _handleLogout() async {
+    try {
+      await _authService.signOut();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그아웃 되었습니다.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('로그아웃 실패: $e')),
+        );
+      }
+    }
+  }
+
+  // -----------------------------
   // 로그인 처리
   // -----------------------------
   Future<void> _handleLogin() async {
@@ -134,6 +154,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          // 현재 로그인된 유저가 있을 때만 로그아웃 버튼 표시
+          StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData && snapshot.data != null) {
+                return TextButton.icon(
+                  onPressed: _handleLogout,
+                  icon: const Icon(Icons.logout, color: Color(0xFF666666), size: 20),
+                  label: const Text(
+                    '로그아웃',
+                    style: TextStyle(color: Color(0xFF666666), fontSize: 14),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),

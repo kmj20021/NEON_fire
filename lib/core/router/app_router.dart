@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:neon_fire/screens/Login_page.dart';
 import 'package:neon_fire/screens/home_screen.dart';
 import 'package:neon_fire/screens/workout_screen.dart';
+import 'package:neon_fire/screens/mypage.dart';
 import 'package:neon_fire/models/saved_routine.dart';
 import 'package:neon_fire/screens/active_workout_screen.dart';
 
@@ -91,8 +92,7 @@ class AppRouter {
                   debugPrint('프로틴 구매 페이지로 이동');
                   break;
                 case '마이 페이지':
-                  // TODO: 마이 페이지 구현
-                  debugPrint('마이 페이지로 이동');
+                  context.go('/mypage');
                   break;
                 case '성과 확인':
                   // TODO: 성과 확인 페이지 구현
@@ -110,6 +110,25 @@ class AppRouter {
                 'workoutIds': routine.workouts,
                 'routineName': routine.name,
               });
+            },
+          );
+        },
+      ),
+      
+      // 마이페이지
+      GoRoute(
+        path: '/mypage',
+        name: 'mypage',
+        builder: (context, state) {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) return const LoginScreen();
+          
+          return MyPageScreen(
+            onBack: () {
+              context.go('/home');
+            },
+            onLogout: () {
+              context.go('/');
             },
           );
         },
