@@ -27,36 +27,38 @@ class AppRouter {
   static final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     debugLogDiagnostics: true,
-    
+
     // 오류 수정: 로그인 상태가 변경될 때마다 redirect가 다시 실행되도록
     // refreshListenable을 추가하여 authStateChanges를 감지
     refreshListenable: _authNotifier,
-    
+
     // 초기 경로
     initialLocation: '/',
-    
+
     // 리다이렉트: 로그인 상태에 따라 페이지 이동
     redirect: (context, state) {
       final user = FirebaseAuth.instance.currentUser;
       final isLoggingIn = state.matchedLocation == '/';
-      
-      debugPrint('🔄 Redirect 체크: user=${user?.uid}, location=${state.matchedLocation}');
-      
+
+      debugPrint(
+        '🔄 Redirect 체크: user=${user?.uid}, location=${state.matchedLocation}',
+      );
+
       // 로그인 안되어 있으면 로그인 페이지로
       if (user == null && !isLoggingIn) {
         debugPrint('❌ 로그인 안됨 → 로그인 페이지로');
         return '/';
       }
-      
+
       // 로그인 되어있는데 로그인 페이지에 있으면 홈으로
       if (user != null && isLoggingIn) {
         debugPrint('✅ 로그인됨 → 홈으로 이동');
         return '/home';
       }
-      
+
       return null; // 리다이렉트 없음
     },
-    
+
     // 라우트 정의
     routes: [
       // 로그인 페이지
@@ -65,7 +67,7 @@ class AppRouter {
         name: 'login',
         builder: (context, state) => const LoginScreen(),
       ),
-      
+
       // 홈 페이지
       GoRoute(
         path: '/home',
@@ -73,7 +75,7 @@ class AppRouter {
         builder: (context, state) {
           final user = FirebaseAuth.instance.currentUser;
           if (user == null) return const LoginScreen();
-          
+
           return HomeScreen(
             userId: user.uid,
             onLogout: () async {
@@ -106,15 +108,18 @@ class AppRouter {
             onStartWorkoutWithRoutine: (SavedRoutine routine) {
               // 루틴의 운동 ID 리스트를 extra로 전달하여 active_workout으로 이동
               debugPrint('루틴으로 운동 시작: ${routine.name}');
-              context.go('/active_workout', extra: {
-                'workoutIds': routine.workouts,
-                'routineName': routine.name,
-              });
+              context.go(
+                '/active_workout',
+                extra: {
+                  'workoutIds': routine.workouts,
+                  'routineName': routine.name,
+                },
+              );
             },
           );
         },
       ),
-      
+
       // 마이페이지
       GoRoute(
         path: '/mypage',
@@ -122,7 +127,7 @@ class AppRouter {
         builder: (context, state) {
           final user = FirebaseAuth.instance.currentUser;
           if (user == null) return const LoginScreen();
-          
+
           return MyPageScreen(
             onBack: () {
               context.go('/home');
@@ -133,7 +138,7 @@ class AppRouter {
           );
         },
       ),
-      
+
       // 운동 페이지
       GoRoute(
         path: '/workout',
@@ -141,7 +146,7 @@ class AppRouter {
         builder: (context, state) {
           final user = FirebaseAuth.instance.currentUser;
           if (user == null) return const LoginScreen();
-          
+
           return WorkoutScreen(
             userId: user.uid,
             onBack: () {
@@ -166,21 +171,22 @@ class AppRouter {
         builder: (context, state) {
           final user = FirebaseAuth.instance.currentUser;
           if (user == null) return const LoginScreen();
-          
+
           // extra로 전달받은 데이터
           final extraData = state.extra;
           List<int>? selectedWorkoutIds;
           String? routineName;
-          
+
           if (extraData is Map<String, dynamic>) {
             // 루틴으로부터 시작한 경우
-            selectedWorkoutIds = (extraData['workoutIds'] as List<dynamic>?)?.cast<int>();
+            selectedWorkoutIds = (extraData['workoutIds'] as List<dynamic>?)
+                ?.cast<int>();
             routineName = extraData['routineName'] as String?;
           } else if (extraData is List<int>) {
             // 직접 선택한 운동으로 시작한 경우
             selectedWorkoutIds = extraData;
           }
-          
+
           // 운동이 선택되지 않았으면 workout 페이지로 리다이렉트
           if (selectedWorkoutIds == null || selectedWorkoutIds.isEmpty) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -190,7 +196,7 @@ class AppRouter {
               body: Center(child: CircularProgressIndicator()),
             );
           }
-          
+
           return ActiveWorkoutScreen(
             userId: user.uid,
             selectedWorkouts: selectedWorkoutIds,
@@ -214,7 +220,7 @@ class AppRouter {
         },
       ),
     ],
-    
+
     // 에러 페이지
     errorBuilder: (context, state) => Scaffold(
       body: Center(

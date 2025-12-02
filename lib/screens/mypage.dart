@@ -7,11 +7,7 @@ class MyPageScreen extends StatefulWidget {
   final VoidCallback onBack;
   final VoidCallback onLogout;
 
-  const MyPageScreen({
-    super.key,
-    required this.onBack,
-    required this.onLogout,
-  });
+  const MyPageScreen({super.key, required this.onBack, required this.onLogout});
 
   @override
   State<MyPageScreen> createState() => _MyPageScreenState();
@@ -263,10 +259,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
         leading: Icon(icon, color: Colors.black54, size: 24),
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 15,
-            color: Colors.black87,
-          ),
+          style: const TextStyle(fontSize: 15, color: Colors.black87),
         ),
         trailing: Icon(
           Icons.arrow_forward_ios,
@@ -290,17 +283,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
         leading: Icon(icon, color: Colors.black54, size: 24),
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 15,
-            color: Colors.black87,
-          ),
+          style: const TextStyle(fontSize: 15, color: Colors.black87),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade500,
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
         ),
         trailing: Icon(
           Icons.arrow_forward_ios,
@@ -324,10 +311,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
         leading: Icon(icon, color: Colors.black54, size: 24),
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 15,
-            color: Colors.black87,
-          ),
+          style: const TextStyle(fontSize: 15, color: Colors.black87),
         ),
         trailing: Switch(
           value: value,
