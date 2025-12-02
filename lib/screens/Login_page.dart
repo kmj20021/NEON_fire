@@ -30,26 +30,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // -----------------------------
-  // 로그아웃 처리
-  // -----------------------------
-  Future<void> _handleLogout() async {
-    try {
-      await _authService.signOut();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('로그아웃 되었습니다.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('로그아웃 실패: $e')),
-        );
-      }
-    }
-  }
-
-  // -----------------------------
   // 로그인 처리
   // -----------------------------
   Future<void> _handleLogin() async {
@@ -81,12 +61,10 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _errorMessage = _getFirebaseErrorMessage(e.code);
       });
-      debugPrint('🔥 FirebaseAuthException: ${e.code} - ${e.message}');
     } catch (e) {
       setState(() {
-        _errorMessage = '로그인 중 오류가 발생했습니다: ${e.toString()}';
+        _errorMessage = '로그인 중 알 수 없는 오류가 발생했습니다.';
       });
-      debugPrint('🔥 일반 에러: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -105,12 +83,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return '비활성화된 계정입니다.';
       case 'too-many-requests':
         return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
-      case 'invalid-credential':
-        return '이메일 또는 비밀번호가 올바르지 않습니다.';
-      case 'INVALID_LOGIN_CREDENTIALS':
-        return '이메일 또는 비밀번호가 올바르지 않습니다.';
       default:
-        return '로그인에 실패했습니다. ($code)';
+        return '로그인에 실패했습니다. 다시 시도해 주세요.';
     }
   }
 
@@ -130,14 +104,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // 소셜 로그인 (UI만, 실제 로그인은 추후 구현)
-  void _handleSocialLogin(String provider) {
-    debugPrint('$provider 로그인 시도 (아직 실제 구현 전)');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$provider 로그인은 나중에 붙이면 됨 (지금은 UI만 존재)')),
-    );
-  }
-
   OutlineInputBorder _buildBorder({required bool focused}) {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
@@ -154,29 +120,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          // 현재 로그인된 유저가 있을 때만 로그아웃 버튼 표시
-          StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.hasData && snapshot.data != null) {
-                return TextButton.icon(
-                  onPressed: _handleLogout,
-                  icon: const Icon(Icons.logout, color: Color(0xFF666666), size: 20),
-                  label: const Text(
-                    '로그아웃',
-                    style: TextStyle(color: Color(0xFF666666), fontSize: 14),
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ],
-      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -191,19 +134,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // 오류 수정: assets/icons/icon.png 경로 대신
-                    // Material Icon을 사용하여 이미지 로딩 실패 방지
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: accent,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.fitness_center,
-                        color: Colors.white,
-                        size: 28,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/icons/icon.png',
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -353,72 +290,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ],
-                ),
-
-                const SizedBox(height: 8),
-
-                // -----------------------------
-                // 소셜 로그인 (구글 / 카카오)
-                // -----------------------------
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Google
-                    InkWell(
-                      onTap: () => _handleSocialLogin('Google'),
-                      borderRadius: BorderRadius.circular(999),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: const Color(0xFFDDDDDD)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.g_mobiledata, size: 28),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    // Kakao
-                    InkWell(
-                      onTap: () => _handleSocialLogin('Kakao'),
-                      borderRadius: BorderRadius.circular(999),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEE500),
-                          borderRadius: BorderRadius.circular(999),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.chat_bubble,
-                          size: 20,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                const Text(
-                  'Firebase 이메일/비밀번호 로그인 사용 중',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF999999)),
                 ),
               ],
             ),

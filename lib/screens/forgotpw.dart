@@ -58,9 +58,7 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
     });
 
     try {
-      await _auth.sendPasswordResetEmail(
-        email: _emailController.text.trim(),
-      );
+      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
 
       setState(() {
         _emailSent = true;
@@ -136,7 +134,7 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
                                 child: Image.asset(
-                                  'assets/images/icon.png',
+                                  'assets/icons/icon.png',
                                   width: 32,
                                   height: 32,
                                   fit: BoxFit.cover,
@@ -234,10 +232,7 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
               const SizedBox(height: 16),
               const Text(
                 '이메일을 확인해주세요!',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               Text(
@@ -288,10 +283,7 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
           },
           child: Text(
             '다른 이메일로 다시 보내기',
-            style: TextStyle(
-              color: accent,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: accent, fontSize: 14),
           ),
         ),
         const SizedBox(height: 8),
@@ -308,10 +300,7 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text(
               '로그인 화면으로 돌아가기',
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.white,
-              ),
+              style: TextStyle(fontSize: 15, color: Colors.white),
             ),
           ),
         ),
@@ -335,10 +324,7 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
             children: [
               const Text(
                 '가입하신 이메일',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -368,10 +354,7 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     _emailMessage!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: accent,
-                    ),
+                    style: TextStyle(fontSize: 12, color: accent),
                   ),
                 ),
             ],
@@ -382,10 +365,7 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
         // 에러 메시지
         if (_errorMessage != null)
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
               color: const Color(0xFFFFEBEE),
@@ -394,19 +374,12 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.error_outline,
-                  color: accent,
-                  size: 20,
-                ),
+                Icon(Icons.error_outline, color: accent, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     _errorMessage!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: accent,
-                    ),
+                    style: TextStyle(fontSize: 13, color: accent),
                   ),
                 ),
               ],
@@ -425,8 +398,9 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
               ),
               elevation: 0,
             ),
-            onPressed:
-                (_emailValid && !_isLoading) ? _sendPasswordResetEmail : null,
+            onPressed: (_emailValid && !_isLoading)
+                ? _sendPasswordResetEmail
+                : null,
             child: _isLoading
                 ? const SizedBox(
                     width: 20,
@@ -438,10 +412,7 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
                   )
                 : const Text(
                     '비밀번호 재설정 링크 보내기',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 15, color: Colors.white),
                   ),
           ),
         ),
@@ -453,10 +424,7 @@ class _ForgotPwScreenState extends State<ForgotPwScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text(
               '로그인 화면으로 돌아가기',
-              style: TextStyle(
-                color: Color(0xFF666666),
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Color(0xFF666666), fontSize: 14),
             ),
           ),
         ),

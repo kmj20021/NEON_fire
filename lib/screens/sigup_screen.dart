@@ -402,17 +402,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // 타이틀
                 const Text(
                   '회원가입 완료!',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
-                
+
                 // 설명
                 Text(
                   '환영합니다! 🎉\n$email으로\n회원가입이 완료되었습니다.',
@@ -424,7 +421,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                
+
                 // 안내 메시지
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -453,7 +450,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                
+
                 // 로그인 버튼
                 SizedBox(
                   width: double.infinity,
@@ -535,7 +532,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
                                 child: Image.asset(
-                                  'assets/icon.png',
+                                  'assets/icons/icon.png',
                                   width: 32,
                                   height: 32,
                                   fit: BoxFit.cover,
