@@ -27,7 +27,6 @@ class AppRouter {
     navigatorKey: _rootNavigatorKey,
     debugLogDiagnostics: true,
     
-    // 오류 수정: 로그인 상태가 변경될 때마다 redirect가 다시 실행되도록
     // refreshListenable을 추가하여 authStateChanges를 감지
     refreshListenable: _authNotifier,
     
