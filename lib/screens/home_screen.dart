@@ -169,9 +169,18 @@ class _HomeScreenState extends State<HomeScreen> {
   
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
-      body: Stack(
+    // 🔙 안드로이드 뒤로가기 버튼 처리: 홈 화면에서는 앱 종료
+    return PopScope(
+      canPop: false, // 기본 뒤로가기 동작 비활성화
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          // 홈 화면에서는 앱을 종료하지 않고 최소화
+          // 사용자가 다시 뒤로가기를 누르면 시스템이 앱을 종료
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAFAFA),
+        body: Stack(
         children: [
           CustomScrollView(
             slivers: [
@@ -265,6 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      ), // PopScope 닫기
     );
   }
 
