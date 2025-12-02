@@ -61,10 +61,12 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _errorMessage = _getFirebaseErrorMessage(e.code);
       });
+      debugPrint('🔥 FirebaseAuthException: ${e.code} - ${e.message}');
     } catch (e) {
       setState(() {
-        _errorMessage = '로그인 중 알 수 없는 오류가 발생했습니다.';
+        _errorMessage = '로그인 중 오류가 발생했습니다: ${e.toString()}';
       });
+      debugPrint('🔥 일반 에러: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -83,8 +85,12 @@ class _LoginScreenState extends State<LoginScreen> {
         return '비활성화된 계정입니다.';
       case 'too-many-requests':
         return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+      case 'invalid-credential':
+        return '이메일 또는 비밀번호가 올바르지 않습니다.';
+      case 'INVALID_LOGIN_CREDENTIALS':
+        return '이메일 또는 비밀번호가 올바르지 않습니다.';
       default:
-        return '로그인에 실패했습니다. 다시 시도해 주세요.';
+        return '로그인에 실패했습니다. ($code)';
     }
   }
 
