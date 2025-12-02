@@ -6,6 +6,7 @@ import 'package:neon_fire/screens/Login_page.dart';
 import 'package:neon_fire/screens/home_screen.dart';
 import 'package:neon_fire/screens/workout_screen.dart';
 import 'package:neon_fire/screens/mypage.dart';
+import 'package:neon_fire/screens/splash_screen.dart';
 import 'package:neon_fire/models/saved_routine.dart';
 import 'package:neon_fire/screens/active_workout_screen.dart';
 
@@ -50,10 +51,10 @@ class AppRouter {
         return '/';
       }
 
-      // 로그인 되어있는데 로그인 페이지에 있으면 홈으로
+      // 로그인 되어있는데 로그인 페이지에 있으면 스플래시로
       if (user != null && isLoggingIn) {
-        debugPrint('✅ 로그인됨 → 홈으로 이동');
-        return '/home';
+        debugPrint('✅ 로그인됨 → 스플래시 화면으로 이동');
+        return '/splash';
       }
 
       return null; // 리다이렉트 없음
@@ -66,6 +67,19 @@ class AppRouter {
         path: '/',
         name: 'login',
         builder: (context, state) => const LoginScreen(),
+      ),
+
+      // 스플래시 화면
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) {
+          return SplashScreen(
+            onComplete: () {
+              context.go('/home');
+            },
+          );
+        },
       ),
 
       // 홈 페이지

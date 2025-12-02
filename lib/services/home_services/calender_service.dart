@@ -9,7 +9,7 @@ class CalendarService {
     try {
       final now = DateTime.now();
       final currentMonth = now.month - 1;
-      final currentYear = now. year;
+      final currentYear = now.year;
 
       // 이번 달 첫 날과 마지막 날
       final firstDay = DateTime(currentYear, currentMonth + 1, 1);
@@ -26,15 +26,22 @@ class CalendarService {
           .collection('users')
           .doc(userId)
           .collection('workout_sessions')
-          .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
-          .where('startedAt', isLessThanOrEqualTo: Timestamp. fromDate(monthEnd))
+          .where(
+            'startedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart),
+          )
+          .where('startedAt', isLessThanOrEqualTo: Timestamp.fromDate(monthEnd))
           .get();
 
       // 운동 날짜 집합 생성
       final workoutDates = <DateTime>{};
       for (var doc in snapshot.docs) {
         final startedAt = (doc.data()['startedAt'] as Timestamp).toDate();
-        final dateOnly = DateTime(startedAt.year, startedAt.month, startedAt. day);
+        final dateOnly = DateTime(
+          startedAt.year,
+          startedAt.month,
+          startedAt.day,
+        );
         workoutDates.add(dateOnly);
       }
 
@@ -45,19 +52,21 @@ class CalendarService {
       for (int i = 0; i < 42; i++) {
         // 6주 * 7일
         final isCurrentMonth = currentDate.month == currentMonth + 1;
-        final isToday = currentDate.year == now.year &&
+        final isToday =
+            currentDate.year == now.year &&
             currentDate.month == now.month &&
-            currentDate. day == now.day;
-        final hasWorkout =
-            isCurrentMonth && workoutDates.contains(currentDate);
+            currentDate.day == now.day;
+        final hasWorkout = isCurrentMonth && workoutDates.contains(currentDate);
 
-        days.add(CalendarDay(
-          date: currentDate,
-          day: currentDate.day,
-          isCurrentMonth: isCurrentMonth,
-          isToday: isToday,
-          hasWorkout: hasWorkout,
-        ));
+        days.add(
+          CalendarDay(
+            date: currentDate,
+            day: currentDate.day,
+            isCurrentMonth: isCurrentMonth,
+            isToday: isToday,
+            hasWorkout: hasWorkout,
+          ),
+        );
 
         currentDate = currentDate.add(const Duration(days: 1));
       }
@@ -83,14 +92,21 @@ class CalendarService {
           .collection('users')
           .doc(userId)
           .collection('workout_sessions')
-          .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
+          .where(
+            'startedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart),
+          )
           .where('startedAt', isLessThanOrEqualTo: Timestamp.fromDate(monthEnd))
           .get();
 
       final workoutDates = <DateTime>{};
       for (var doc in snapshot.docs) {
         final startedAt = (doc.data()['startedAt'] as Timestamp).toDate();
-        final dateOnly = DateTime(startedAt.year, startedAt.month, startedAt.day);
+        final dateOnly = DateTime(
+          startedAt.year,
+          startedAt.month,
+          startedAt.day,
+        );
         workoutDates.add(dateOnly);
       }
 
@@ -102,42 +118,43 @@ class CalendarService {
   }
 
   /// 현재 주의 캘린더 데이터 생성 (월~일)
-  Future<List<CalendarDay>> generateCurrentWeekCalendar(
-    String userId,
-  ) async {
+  Future<List<CalendarDay>> generateCurrentWeekCalendar(String userId) async {
     try {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      
+
       // 이번 주 월요일 찾기 (weekday: 1=월, 7=일)
       final mondayOffset = now.weekday - 1; // 0(월요일) ~ 6(일요일)
       final monday = today.subtract(Duration(days: mondayOffset));
-      
+
       // 운동 날짜 가져오기
       final workoutDates = await getWorkoutDatesForMonth(
         userId,
         now.year,
         now.month,
       );
-      
+
       // 월~일까지 7일 생성
       final days = <CalendarDay>[];
       for (int i = 0; i < 7; i++) {
         final date = monday.add(Duration(days: i));
-        final isToday = date.year == today.year &&
+        final isToday =
+            date.year == today.year &&
             date.month == today.month &&
             date.day == today.day;
         final hasWorkout = workoutDates.contains(date);
-        
-        days.add(CalendarDay(
-          date: date,
-          day: date.day,
-          isCurrentMonth: date.month == now.month,
-          isToday: isToday,
-          hasWorkout: hasWorkout,
-        ));
+
+        days.add(
+          CalendarDay(
+            date: date,
+            day: date.day,
+            isCurrentMonth: date.month == now.month,
+            isToday: isToday,
+            hasWorkout: hasWorkout,
+          ),
+        );
       }
-      
+
       return days;
     } catch (e) {
       print('주간 캘린더 생성 실패: $e');
