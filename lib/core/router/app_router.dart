@@ -10,6 +10,7 @@ import 'package:neon_fire/screens/splash_screen.dart';
 import 'package:neon_fire/models/saved_routine.dart';
 import 'package:neon_fire/screens/active_workout_screen.dart';
 import 'package:neon_fire/screens/condition_status_screen.dart';
+import 'package:neon_fire/screens/performance_screen.dart';
 
 /// Firebase Auth 상태 변화를 감지하는 ChangeNotifier
 class AuthNotifier extends ChangeNotifier {
@@ -113,8 +114,7 @@ class AppRouter {
                   break;
                 case '성과 확인':
                 case '성과확인':
-                  // TODO: 성과 확인 페이지 구현
-                  debugPrint('성과 확인 페이지로 이동');
+                  context.go('/performance');
                   break;
                 case '상태 확인':
                 case '상태확인':
@@ -249,6 +249,35 @@ class AppRouter {
           if (user == null) return const LoginScreen();
 
           return ConditionStatusScreen(
+            userId: user.uid,
+            onBack: () {
+              context.go('/home');
+            },
+            navigateToPage: (String page) {
+              switch (page) {
+                case '운동':
+                  context.go('/workout');
+                  break;
+                case '홈':
+                  context.go('/home');
+                  break;
+                default:
+                  debugPrint('알 수 없는 페이지: $page');
+              }
+            },
+          );
+        },
+      ),
+
+      // 성과 확인 페이지
+      GoRoute(
+        path: '/performance',
+        name: 'performance',
+        builder: (context, state) {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) return const LoginScreen();
+
+          return PerformanceScreen(
             userId: user.uid,
             onBack: () {
               context.go('/home');

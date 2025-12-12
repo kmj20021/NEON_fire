@@ -13,7 +13,7 @@ class CalendarService {
 
       // 이번 달 첫 날과 마지막 날
       final firstDay = DateTime(currentYear, currentMonth + 1, 1);
-      final lastDay = DateTime(currentYear, currentMonth + 2, 0);
+      //final lastDay = DateTime(currentYear, currentMonth + 2, 0);
 
       // 캘린더 시작 날짜 (이전 달 마지막 주 포함)
       final startDate = firstDay.subtract(Duration(days: firstDay.weekday % 7));
