@@ -81,10 +81,7 @@ class _ConditionStatusScreenState extends State<ConditionStatusScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: widget.onBack,
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
           '상태 확인',
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
@@ -96,26 +93,28 @@ class _ConditionStatusScreenState extends State<ConditionStatusScreen> {
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadAllData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. 오늘의 컨디션 점수
-                    _buildConditionScoreCard(),
-                    const SizedBox(height: 16),
+      body: Stack(
+        children: [
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _loadAllData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. 오늘의 컨디션 점수
+                        _buildConditionScoreCard(),
+                        const SizedBox(height: 16),
 
-                    // 2. 오늘 운동 추천 / 휴식 권장
-                    _buildWorkoutRecommendationCard(),
-                    const SizedBox(height: 16),
+                        // 2. 오늘 운동 추천 / 휴식 권장
+                        _buildWorkoutRecommendationCard(),
+                        const SizedBox(height: 16),
 
-                    // 3. 위험 신호 알림 (있을 경우만)
-                    if (warnings.isNotEmpty) ...[
+                        // 3. 위험 신호 알림 (있을 경우만)
+                        if (warnings.isNotEmpty) ...[
                       _buildWarningAlertsCard(),
                       const SizedBox(height: 16),
                     ],
@@ -136,13 +135,84 @@ class _ConditionStatusScreenState extends State<ConditionStatusScreen> {
                     _buildRecentPRsCard(),
                     const SizedBox(height: 16),
 
-                    // 8. 주관적 컨디션 로그
-                    _buildConditionLogCard(),
-                    const SizedBox(height: 32),
+                        // 8. 주관적 컨디션 로그
+                        _buildConditionLogCard(),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
+                ),
+          // Bottom Navigation Bar
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildBottomNavigation(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigation() {
+    final items = [
+      {'id': '운동', 'icon': Icons.fitness_center, 'label': '운동'},
+      {'id': '상태확인', 'icon': Icons.assessment, 'label': '상태확인'},
+      {'id': '성과확인', 'icon': Icons.bar_chart, 'label': '성과확인'},
+      {'id': '마이페이지', 'icon': Icons.person, 'label': '마이페이지'},
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: items.map((item) {
+            final isActive = item['id'] == '상태확인';
+            return InkWell(
+              onTap: () {
+                if (item['id'] != '상태확인') {
+                  widget.navigateToPage(item['label'] as String);
+                }
+                // 상태확인은 현재 페이지이므로 아무것도 하지 않음
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isActive ? primaryColor : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      item['icon'] as IconData,
+                      size: 20,
+                      color: isActive ? Colors.white : Colors.grey.shade600,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item['label'] as String,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isActive ? Colors.white : Colors.grey.shade600,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 

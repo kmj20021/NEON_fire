@@ -219,12 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ],
                         ),
-                        IconButton(
-                          onPressed: () =>
-                              widget.navigateToPage('마이 페이지'),
-                          icon: const Icon(Icons.person,
-                              color: Colors.black54),
-                        ),
+                        const SizedBox(width: 48), // 균형을 위한 빈 공간
                       ],
                     ),
                   ),
@@ -986,10 +981,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomNavigation() {
     final items = [
-      {'id': '운동', 'icon': Icons. play_arrow, 'label': '운동'},
-      {'id': '상태확인', 'icon': Icons. assessment, 'label': '상태확인'},
+      {'id': '운동', 'icon': Icons.fitness_center, 'label': '운동'},
+      {'id': '상태확인', 'icon': Icons.assessment, 'label': '상태확인'},
       {'id': '성과확인', 'icon': Icons.bar_chart, 'label': '성과확인'},
-      {'id': '식단', 'icon': Icons. restaurant, 'label': '식단'},
+      {'id': '마이페이지', 'icon': Icons.person, 'label': '마이페이지'},
     ];
 
     return Container(
@@ -1005,13 +1000,16 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: items.map((item) {
-            final isActive = activeTab == item['id'];
+            final isActive = item['id'] == '운동';
             return InkWell(
               onTap: () {
-                setState(() => activeTab = item['id'] as String);
-                if (item['id'] != '운동') {
+                if (item['id'] == '마이페이지') {
+                  // 마이페이지는 Navigator.push로 전체 화면 이동 (바텀 네비 없음)
+                  widget.navigateToPage('마이페이지');
+                } else if (item['id'] != '운동') {
                   widget.navigateToPage(item['label'] as String);
                 }
+                // 운동은 현재 페이지(홈 화면)이므로 아무것도 하지 않음
               },
               child: Container(
                 padding:

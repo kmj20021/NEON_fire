@@ -103,13 +103,14 @@ class AppRouter {
             navigateToPage: (String page) {
               switch (page) {
                 case '운동':
-                  context.go('/workout');
+                  // 운동 탭은 홈 화면을 표시하므로 현재 페이지 유지
                   break;
                 case '프로틴 구매':
                   // TODO: 프로틴 구매 페이지 구현
                   debugPrint('프로틴 구매 페이지로 이동');
                   break;
                 case '마이 페이지':
+                case '마이페이지':
                   context.go('/mypage');
                   break;
                 case '성과 확인':
@@ -140,7 +141,7 @@ class AppRouter {
         },
       ),
 
-      // 마이페이지
+      // 마이페이지 (바텀 네비게이션 유지)
       GoRoute(
         path: '/mypage',
         name: 'mypage',
@@ -149,11 +150,25 @@ class AppRouter {
           if (user == null) return const LoginScreen();
 
           return MyPageScreen(
-            onBack: () {
-              context.go('/home');
-            },
             onLogout: () {
               context.go('/');
+            },
+            navigateToPage: (String page) {
+              switch (page) {
+                case '운동':
+                  context.go('/home');
+                  break;
+                case '상태확인':
+                case '상태 확인':
+                  context.go('/condition_status');
+                  break;
+                case '성과확인':
+                case '성과 확인':
+                  context.go('/performance');
+                  break;
+                default:
+                  debugPrint('알 수 없는 페이지: $page');
+              }
             },
           );
         },
@@ -256,10 +271,15 @@ class AppRouter {
             navigateToPage: (String page) {
               switch (page) {
                 case '운동':
-                  context.go('/workout');
-                  break;
-                case '홈':
                   context.go('/home');
+                  break;
+                case '성과확인':
+                case '성과 확인':
+                  context.go('/performance');
+                  break;
+                case '마이페이지':
+                case '마이 페이지':
+                  context.go('/mypage');
                   break;
                 default:
                   debugPrint('알 수 없는 페이지: $page');
@@ -285,10 +305,15 @@ class AppRouter {
             navigateToPage: (String page) {
               switch (page) {
                 case '운동':
-                  context.go('/workout');
-                  break;
-                case '홈':
                   context.go('/home');
+                  break;
+                case '상태확인':
+                case '상태 확인':
+                  context.go('/condition_status');
+                  break;
+                case '마이페이지':
+                case '마이 페이지':
+                  context.go('/mypage');
                   break;
                 default:
                   debugPrint('알 수 없는 페이지: $page');

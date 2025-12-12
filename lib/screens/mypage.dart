@@ -5,10 +5,10 @@ import 'package:neon_fire/models/app_user.dart';
 import 'package:neon_fire/screens/profile_management_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
-  final VoidCallback onBack;
   final VoidCallback onLogout;
+  final Function(String) navigateToPage;
 
-  const MyPageScreen({super.key, required this.onBack, required this.onLogout});
+  const MyPageScreen({super.key, required this.onLogout, required this.navigateToPage});
 
   @override
   State<MyPageScreen> createState() => _MyPageScreenState();
@@ -93,12 +93,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
-          onPressed: widget.onBack,
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
-          '설정',
+          '마이페이지',
           style: TextStyle(
             color: Colors.black87,
             fontSize: 18,
@@ -266,6 +263,70 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 ],
               ),
             ),
+      bottomNavigationBar: _buildBottomNavigation(),
+    );
+  }
+
+  Widget _buildBottomNavigation() {
+    const primaryColor = Color(0xFFFF5757);
+    final items = [
+      {'id': '운동', 'icon': Icons.fitness_center, 'label': '운동'},
+      {'id': '상태확인', 'icon': Icons.assessment, 'label': '상태확인'},
+      {'id': '성과확인', 'icon': Icons.bar_chart, 'label': '성과확인'},
+      {'id': '마이페이지', 'icon': Icons.person, 'label': '마이페이지'},
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: items.map((item) {
+            final isActive = item['id'] == '마이페이지';
+            return InkWell(
+              onTap: () {
+                if (item['id'] != '마이페이지') {
+                  widget.navigateToPage(item['label'] as String);
+                }
+                // 마이페이지는 현재 페이지이므로 아무것도 하지 않음
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isActive ? primaryColor : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      item['icon'] as IconData,
+                      size: 20,
+                      color: isActive ? Colors.white : Colors.grey.shade600,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item['label'] as String,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isActive ? Colors.white : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 

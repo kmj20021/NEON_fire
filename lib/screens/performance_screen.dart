@@ -91,10 +91,7 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: widget.onBack,
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
           '성과 확인',
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
@@ -106,19 +103,21 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadAllData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. 기간 선택 버튼
-                    _buildPeriodSelector(),
-                    const SizedBox(height: 16),
+      body: Stack(
+        children: [
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _loadAllData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. 기간 선택 버튼
+                        _buildPeriodSelector(),
+                        const SizedBox(height: 16),
 
                     // 2. 핵심 성과 요약 카드
                     _buildSummaryCard(),
@@ -152,13 +151,84 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
                     _buildSelfComparisonCard(),
                     const SizedBox(height: 16),
 
-                    // 10. 자동 성과 코멘트
-                    _buildPerformanceCommentCard(),
-                    const SizedBox(height: 32),
+                        // 10. 자동 성과 코멘트
+                        _buildPerformanceCommentCard(),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
+                ),
+          // Bottom Navigation Bar
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildBottomNavigation(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigation() {
+    final items = [
+      {'id': '운동', 'icon': Icons.fitness_center, 'label': '운동'},
+      {'id': '상태확인', 'icon': Icons.assessment, 'label': '상태확인'},
+      {'id': '성과확인', 'icon': Icons.bar_chart, 'label': '성과확인'},
+      {'id': '마이페이지', 'icon': Icons.person, 'label': '마이페이지'},
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: items.map((item) {
+            final isActive = item['id'] == '성과확인';
+            return InkWell(
+              onTap: () {
+                if (item['id'] != '성과확인') {
+                  widget.navigateToPage(item['label'] as String);
+                }
+                // 성과확인은 현재 페이지이므로 아무것도 하지 않음
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isActive ? primaryColor : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      item['icon'] as IconData,
+                      size: 20,
+                      color: isActive ? Colors.white : Colors.grey.shade600,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item['label'] as String,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isActive ? Colors.white : Colors.grey.shade600,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 
