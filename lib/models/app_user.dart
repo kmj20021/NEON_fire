@@ -7,6 +7,7 @@ class AppUser {
   final String nickname;
   final String address;
   final String phone;
+  final String? profileImageUrl;
   final DateTime createdAt;
 
   AppUser({
@@ -15,6 +16,7 @@ class AppUser {
     required this.nickname,
     required this.address,
     required this.phone,
+    this.profileImageUrl,
     required this.createdAt,
   });
 
@@ -27,6 +29,7 @@ class AppUser {
       nickname: '',
       address: '',
       phone: '',
+      profileImageUrl: null,
       createdAt: DateTime.now(),
     );
   }
@@ -39,6 +42,7 @@ class AppUser {
       'nickname': nickname,
       'address': address,
       'phone': phone,
+      'profileImageUrl': profileImageUrl,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -51,9 +55,31 @@ class AppUser {
       nickname: map['nickname'] as String? ?? '',
       address: map['address'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
+      profileImageUrl: map['profileImageUrl'] as String?,
       createdAt:
           DateTime.tryParse(map['createdAt'] as String? ?? '') ??
           DateTime.now(),
+    );
+  }
+
+  /// 복사본 생성 (일부만 변경할 때 사용)
+  AppUser copyWith({
+    String? uid,
+    String? email,
+    String? nickname,
+    String? address,
+    String? phone,
+    String? profileImageUrl,
+    DateTime? createdAt,
+  }) {
+    return AppUser(
+      uid: uid ?? this.uid,
+      email: email ?? this.email,
+      nickname: nickname ?? this.nickname,
+      address: address ?? this.address,
+      phone: phone ?? this.phone,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:neon_fire/services/auth_service.dart';
 import 'package:neon_fire/models/app_user.dart';
+import 'package:neon_fire/screens/profile_management_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -35,6 +36,25 @@ class _MyPageScreenState extends State<MyPageScreen> {
       debugPrint('유저 정보 로드 실패: $e');
       setState(() => _isLoading = false);
     }
+  }
+
+  /// 프로필 관리 화면으로 이동
+  void _navigateToProfileManagement() {
+    if (_user == null) return;
+
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => ProfileManagementScreen(
+              user: _user!,
+              onBack: () => Navigator.of(context).pop(),
+            ),
+          ),
+        )
+        .then((_) {
+          // 돌아올 때 사용자 정보 새로고침
+          _loadUserData();
+        });
   }
 
   Future<void> _handleLogout() async {
@@ -94,103 +114,91 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 프로필 섹션
-                  Container(
-                    margin: const EdgeInsets.all(16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        // 프로필 이미지
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            shape: BoxShape.circle,
+                  GestureDetector(
+                    onTap: _navigateToProfileManagement,
+                    child: Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
                           ),
-                          child: Icon(
-                            Icons.person,
-                            size: 36,
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          // 프로필 이미지
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              shape: BoxShape.circle,
+                              image: _user?.profileImageUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(
+                                        _user!.profileImageUrl!,
+                                      ),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                            ),
+                            child: _user?.profileImageUrl == null
+                                ? Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: Colors.grey.shade400,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 16),
+                          // 닉네임 및 정보
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _user?.nickname.isNotEmpty == true
+                                      ? '${_user!.nickname}님'
+                                      : '사용자님',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '내 정보 / 주소 관리',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _user?.email ?? '',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 16,
                             color: Colors.grey.shade400,
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        // 닉네임 및 정보
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _user?.nickname.isNotEmpty == true
-                                    ? '${_user!.nickname}님'
-                                    : '사용자님',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '내 정보 / 주소 관리',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // 로그아웃 버튼
-                        ElevatedButton(
-                          onPressed: _handleLogout,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            '로그아웃',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-
-                  // 활동 및 상태 섹션
-                  _buildSectionTitle('활동 및 상태'),
-                  _buildMenuItem(
-                    icon: Icons.shopping_cart_outlined,
-                    title: '주문/구매 내역',
-                    onTap: () {},
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.favorite_border,
-                    title: '좋아요 및 북마크',
-                    onTap: () {},
-                  ),
-                  _buildMenuItem(
-                    icon: Icons.access_time,
-                    title: '최근 본 기록',
-                    onTap: () {},
                   ),
 
                   // 계정 및 설정 섹션
@@ -227,7 +235,34 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     onTap: () {},
                   ),
 
-                  const SizedBox(height: 32),
+                  // 로그아웃 버튼
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _handleLogout,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          '로그아웃',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
                 ],
               ),
             ),

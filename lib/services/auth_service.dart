@@ -1,12 +1,15 @@
 // lib/services/auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 
 import 'package:neon_fire/models/app_user.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   /// 현재 Firebase Auth 유저
   User? get currentUser => _auth.currentUser;
@@ -70,5 +73,40 @@ class AuthService {
     if (!doc.exists || doc.data() == null) return null;
 
     return AppUser.fromMap(doc.data()!, doc.id);
+  }
+
+  /// 프로필 사진 업로드
+  Future<String> uploadProfileImage(String userId, File imageFile) async {
+    try {
+      final ref = _storage.ref().child('profile_images/$userId.jpg');
+      await ref.putFile(imageFile);
+      final url = await ref.getDownloadURL();
+      return url;
+    } catch (e) {
+      throw Exception('프로필 사진 업로드 실패: $e');
+    }
+  }
+
+  /// 사용자 정보 업데이트 (닉네임, 주소, 전화번호, 프로필 이미지)
+  Future<void> updateUserProfile({
+    required String userId,
+    String? nickname,
+    String? address,
+    String? phone,
+    String? profileImageUrl,
+  }) async {
+    try {
+      final updateData = <String, dynamic>{};
+
+      if (nickname != null) updateData['nickname'] = nickname;
+      if (address != null) updateData['address'] = address;
+      if (phone != null) updateData['phone'] = phone;
+      if (profileImageUrl != null)
+        updateData['profileImageUrl'] = profileImageUrl;
+
+      await _db.collection('users').doc(userId).update(updateData);
+    } catch (e) {
+      throw Exception('사용자 정보 업데이트 실패: $e');
+    }
   }
 }

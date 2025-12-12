@@ -18,9 +18,16 @@ dependencies:
   firebase_core: ^4.2.1 #초기화용
   firebase_auth: ^6.1.2 #인증용
   cloud_firestore: ^6.1.0  #데이터베이스용
+  firebase_storage: ^13.0.4  #이미지 저장용
 
   # URL 런처 #YouTube 링크 열기
   url_launcher: ^6.2.2  
+
+  # 이미지 피커
+  image_picker: ^1.0.7
+  
+  # 파일 핸들링
+  path_provider: ^2.1.1
 
   # 차트 라이브러리
   fl_chart: ^0.65.0  
