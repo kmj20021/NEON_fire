@@ -15,8 +15,10 @@ class WorkoutStatsService {
           .collection('users')
           .doc(userId)
           .collection('workout_sessions')
-          .where('startedAt',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
+          .where(
+            'startedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart),
+          )
           .where('startedAt', isLessThanOrEqualTo: Timestamp.fromDate(monthEnd))
           .get();
 
@@ -25,7 +27,11 @@ class WorkoutStatsService {
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final startedAt = (data['startedAt'] as Timestamp).toDate();
-        final dateOnly = DateTime(startedAt.year, startedAt.month, startedAt.day);
+        final dateOnly = DateTime(
+          startedAt.year,
+          startedAt.month,
+          startedAt.day,
+        );
         final duration = data['duration'] as int? ?? 0;
 
         // 같은 날의 운동을 모두 합산
@@ -45,8 +51,14 @@ class WorkoutStatsService {
       final now = DateTime.now();
       // 이번 주 월요일 계산 (weekday: 월=1, 일=7)
       final weekStart = now.subtract(Duration(days: now.weekday - 1));
-      final startOfWeek = DateTime(weekStart.year, weekStart.month, weekStart.day);
-      final endOfWeek = startOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+      final startOfWeek = DateTime(
+        weekStart.year,
+        weekStart.month,
+        weekStart.day,
+      );
+      final endOfWeek = startOfWeek.add(
+        const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+      );
 
       print('📅 주간 데이터 조회 범위: ${startOfWeek} ~ ${endOfWeek}');
       print('🔍 userId: $userId');
@@ -55,9 +67,14 @@ class WorkoutStatsService {
           .collection('users')
           .doc(userId)
           .collection('workout_sessions')
-          .where('startedAt',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfWeek))
-          .where('startedAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfWeek))
+          .where(
+            'startedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startOfWeek),
+          )
+          .where(
+            'startedAt',
+            isLessThanOrEqualTo: Timestamp.fromDate(endOfWeek),
+          )
           .get();
 
       print('📊 조회된 세션 개수: ${snapshot.docs.length}');
@@ -82,7 +99,9 @@ class WorkoutStatsService {
         final dayOfWeek = (startedAt.weekday - 1) % 7;
         dayWorkout[dayOfWeek] = (dayWorkout[dayOfWeek] ?? 0) + duration;
 
-        print('  운동 기록: ${startedAt} (${['월', '화', '수', '목', '금', '토', '일'][dayOfWeek]}) - ${duration}초 = ${(duration / 60).toStringAsFixed(1)}분');
+        print(
+          '  운동 기록: ${startedAt} (${['월', '화', '수', '목', '금', '토', '일'][dayOfWeek]}) - ${duration}초 = ${(duration / 60).toStringAsFixed(1)}분',
+        );
       }
 
       // 결과 변환 (초 → 분)
@@ -123,8 +142,11 @@ class WorkoutStatsService {
       final snapshot = await _db
           .collection('users')
           .doc(userId)
-          . collection('workout_sessions')
-          .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .collection('workout_sessions')
+          .where(
+            'startedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
           .orderBy('startedAt', descending: true)
           .get();
 
@@ -172,11 +194,15 @@ class WorkoutStatsService {
       if (snapshot.docs.isEmpty) return 0;
 
       int consecutiveDays = 1;
-      DateTime lastWorkoutDate = (snapshot.docs.first.data()['startedAt'] as Timestamp).toDate();
+      DateTime lastWorkoutDate =
+          (snapshot.docs.first.data()['startedAt'] as Timestamp).toDate();
 
       for (int i = 1; i < snapshot.docs.length; i++) {
-        final currentWorkoutDate = (snapshot.docs[i].data()['startedAt'] as Timestamp).toDate();
-        final dayDifference = lastWorkoutDate.difference(currentWorkoutDate).inDays;
+        final currentWorkoutDate =
+            (snapshot.docs[i].data()['startedAt'] as Timestamp).toDate();
+        final dayDifference = lastWorkoutDate
+            .difference(currentWorkoutDate)
+            .inDays;
 
         if (dayDifference == 1) {
           consecutiveDays++;
@@ -198,13 +224,18 @@ class WorkoutStatsService {
     try {
       final now = DateTime.now();
       final weekStart = now.subtract(Duration(days: now.weekday % 7));
-      final weekEnd = weekStart.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+      final weekEnd = weekStart.add(
+        const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+      );
 
       final snapshot = await _db
           .collection('users')
           .doc(userId)
           .collection('workout_sessions')
-          .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart))
+          .where(
+            'startedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart),
+          )
           .where('startedAt', isLessThanOrEqualTo: Timestamp.fromDate(weekEnd))
           .get();
 
@@ -240,7 +271,11 @@ class WorkoutStatsService {
         final volume = (data['totalVolume'] as num?)?.toDouble() ?? 0.0;
         final exerciseCountInSession = data['exerciseCount'] as int? ?? 0;
         final startedAt = (data['startedAt'] as Timestamp).toDate();
-        final dateOnly = DateTime(startedAt.year, startedAt.month, startedAt.day);
+        final dateOnly = DateTime(
+          startedAt.year,
+          startedAt.month,
+          startedAt.day,
+        );
         final dayOfWeek = weekDays[(startedAt.weekday - 1) % 7];
 
         totalDuration += duration;
@@ -253,9 +288,12 @@ class WorkoutStatsService {
         dailyDuration[dayOfWeek] = (dailyDuration[dayOfWeek] ?? 0) + duration;
 
         // 운동 종목별 횟수 계산
-        final exercisesSnapshot = await doc.reference.collection('exercises').get();
+        final exercisesSnapshot = await doc.reference
+            .collection('exercises')
+            .get();
         for (var exerciseDoc in exercisesSnapshot.docs) {
-          final exerciseName = exerciseDoc.data()['exerciseName'] as String? ?? '알 수 없음';
+          final exerciseName =
+              exerciseDoc.data()['exerciseName'] as String? ?? '알 수 없음';
           exerciseCount[exerciseName] = (exerciseCount[exerciseName] ?? 0) + 1;
         }
       }
@@ -275,7 +313,9 @@ class WorkoutStatsService {
         ..sort((a, b) => b.value.compareTo(a.value));
       final topExercises = sortedExercises.take(3).map((e) => e.key).toList();
 
-      final avgDuration = workoutDates.isEmpty ? 0.0 : totalDuration / workoutDates.length;
+      final avgDuration = workoutDates.isEmpty
+          ? 0.0
+          : totalDuration / workoutDates.length;
 
       return WeeklyWorkoutSummary(
         totalDuration: totalDuration,

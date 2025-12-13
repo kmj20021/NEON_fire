@@ -11,22 +11,23 @@ class RecommendationServiceV2 {
     try {
       // 1. 최근 30일 운동 세션의 모든 운동 가져오기
       final muscleWorkoutMap = await _getMuscleWorkoutHistory(userId);
-      
+
       // 2.  가장 오래 안 한 근육 그룹 찾기
-      final neglectedMuscle = _findMostNeglectedMuscleAdvanced(muscleWorkoutMap);
-      
+      final neglectedMuscle = _findMostNeglectedMuscleAdvanced(
+        muscleWorkoutMap,
+      );
+
       if (neglectedMuscle == null) {
         return await _getRandomExercise();
       }
-      
+
       // 3. 해당 근육의 운동 중 사용자가 안 해본 운동 우선 추천
       final exercise = await _getExerciseForMuscle(
         userId,
         neglectedMuscle['muscleId'] as int,
       );
-      
+
       return exercise;
-      
     } catch (e) {
       print('추천 운동 조회 실패: $e');
       return null;
@@ -54,7 +55,10 @@ class RecommendationServiceV2 {
         .collection('users')
         .doc(userId)
         .collection('workout_sessions')
-        .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(thirtyDaysAgo))
+        .where(
+          'startedAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(thirtyDaysAgo),
+        )
         .orderBy('startedAt', descending: true)
         .get();
 
@@ -85,16 +89,16 @@ class RecommendationServiceV2 {
         for (var muscleId in muscleIds) {
           if (muscleMap.containsKey(muscleId)) {
             final current = muscleMap[muscleId]!;
-            
+
             // 마지막 운동일 업데이트
             if (current['lastWorkoutDate'] == null ||
                 sessionDate.isAfter(current['lastWorkoutDate'] as DateTime)) {
               current['lastWorkoutDate'] = sessionDate;
             }
-            
+
             // 운동 횟수 증가
             current['workoutCount'] = (current['workoutCount'] as int) + 1;
-            
+
             // 운동 ID 추가
             (current['exercises'] as List<int>).add(exerciseId);
           }
@@ -119,7 +123,8 @@ class RecommendationServiceV2 {
     int? mostNeglectedMuscleId; // 가장 방치된 근육 ID
     int maxDaysSince = -1; // 최대 경과 일수
 
-    for (var entry in muscleMap.entries) { // muscleId와 데이터 쌍
+    for (var entry in muscleMap.entries) {
+      // muscleId와 데이터 쌍
       final muscleId = entry.key;
       final data = entry.value;
       final lastDate = data['lastWorkoutDate'] as DateTime?;
@@ -142,7 +147,8 @@ class RecommendationServiceV2 {
     return {
       'muscleId': mostNeglectedMuscleId,
       'daysSince': maxDaysSince, // 마지막 운동 후 경과 일수
-      'doneExercises': muscleMap[mostNeglectedMuscleId]!['exercises'], // 이미 한 운동 목록
+      'doneExercises':
+          muscleMap[mostNeglectedMuscleId]!['exercises'], // 이미 한 운동 목록
     };
   }
 
@@ -187,8 +193,11 @@ class RecommendationServiceV2 {
         .collection('users')
         .doc(userId)
         .collection('workout_sessions')
-        .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(sevenDaysAgo))
-        . get();
+        .where(
+          'startedAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(sevenDaysAgo),
+        )
+        .get();
 
     for (var sessionDoc in sessionsSnapshot.docs) {
       final exercisesSnapshot = await _db
@@ -210,12 +219,13 @@ class RecommendationServiceV2 {
   /// 랜덤 운동 추천
   Future<RecommendedExercise?> _getRandomExercise() async {
     final snapshot = await _db.collection('exercises').limit(10).get();
-    
+
     if (snapshot.docs.isEmpty) return null;
-    
-    final randomDoc = snapshot.docs[DateTime.now().millisecond % snapshot.docs.length];
+
+    final randomDoc =
+        snapshot.docs[DateTime.now().millisecond % snapshot.docs.length];
     final data = randomDoc.data();
-    
+
     return RecommendedExercise.fromMap(data, 0);
   }
 }

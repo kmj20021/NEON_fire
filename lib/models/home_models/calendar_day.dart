@@ -8,7 +8,7 @@ class CalendarDay {
   CalendarDay({
     required this.date,
     required this.day,
-    required this. isCurrentMonth,
+    required this.isCurrentMonth,
     required this.isToday,
     required this.hasWorkout,
   });

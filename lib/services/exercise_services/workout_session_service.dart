@@ -5,20 +5,20 @@ class WorkoutSessionService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   /// 운동 세션 저장
-  Future<String? > saveWorkoutSession({
+  Future<String?> saveWorkoutSession({
     required String userId,
-    required String?  routineName,
+    required String? routineName,
     required int duration,
     required List<WorkoutSessionData> exercises,
   }) async {
     try {
       // 총 볼륨 계산 (kg)
       final totalVolume = _calculateTotalVolume(exercises);
-      
+
       // 총 완료된 세트 수
       final completedSets = exercises.fold(
         0,
-        (sum, ex) => sum + ex.sets.where((s) => s. completed).length,
+        (sum, ex) => sum + ex.sets.where((s) => s.completed).length,
       );
 
       // 세션 문서 생성
@@ -27,21 +27,21 @@ class WorkoutSessionService {
           .doc(userId)
           .collection('workout_sessions')
           .add({
-        'routineName': routineName,
-        'startedAt': Timestamp.now(),
-        'endedAt': Timestamp.now(),
-        'duration': duration, // 초 단위
-        'totalVolume': totalVolume,
-        'totalSets': exercises.fold(0, (sum, ex) => sum + ex.sets.length),
-        'completedSets': completedSets,
-        'exerciseCount': exercises.length,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+            'routineName': routineName,
+            'startedAt': Timestamp.now(),
+            'endedAt': Timestamp.now(),
+            'duration': duration, // 초 단위
+            'totalVolume': totalVolume,
+            'totalSets': exercises.fold(0, (sum, ex) => sum + ex.sets.length),
+            'completedSets': completedSets,
+            'exerciseCount': exercises.length,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
       // 각 운동 저장
-      for (var i = 0; i < exercises. length; i++) {
+      for (var i = 0; i < exercises.length; i++) {
         final exercise = exercises[i];
-        
+
         final exerciseRef = await sessionRef.collection('exercises').add({
           'exerciseId': exercise.exerciseId,
           'exerciseName': exercise.exerciseName,
@@ -52,14 +52,14 @@ class WorkoutSessionService {
         // 각 세트 저장
         for (var j = 0; j < exercise.sets.length; j++) {
           final set = exercise.sets[j];
-          
-          await exerciseRef.collection('sets'). add({
+
+          await exerciseRef.collection('sets').add({
             'setNumber': j + 1,
             'weight': set.weight,
             'reps': set.reps,
             'isCompleted': set.completed,
             'completedAt': set.completedAt != null
-                ?  Timestamp.fromDate(set.completedAt!)
+                ? Timestamp.fromDate(set.completedAt!)
                 : null,
             'createdAt': FieldValue.serverTimestamp(),
           });
@@ -83,7 +83,7 @@ class WorkoutSessionService {
     for (var exercise in exercises) {
       for (var set in exercise.sets) {
         if (set.completed) {
-          total += set.weight * set. reps;
+          total += set.weight * set.reps;
         }
       }
     }
@@ -102,7 +102,7 @@ class WorkoutSessionService {
         double maxWeight = 0;
         int maxReps = 0;
 
-        for (var set in exercise. sets) {
+        for (var set in exercise.sets) {
           if (set.completed) {
             final oneRM = set.weight * (1 + set.reps / 30);
             if (oneRM > maxOneRM) {
@@ -128,26 +128,29 @@ class WorkoutSessionService {
             .where('recordType', isEqualTo: '1RM')
             .orderBy('recordValue', descending: true)
             .limit(1)
-            . get();
+            .get();
 
         // 신기록이면 저장
         if (existingRecordSnapshot.docs.isEmpty ||
-            maxOneRM > existingRecordSnapshot.docs.first. data()['recordValue']) {
+            maxOneRM >
+                existingRecordSnapshot.docs.first.data()['recordValue']) {
           await _db
               .collection('users')
               .doc(userId)
               .collection('personal_records')
               .add({
-            'exerciseId': exercise.exerciseId,
-            'exerciseName': exercise.exerciseName,
-            'recordType': '1RM',
-            'recordValue': maxOneRM,
-            'recordDate': Timestamp.now(),
-            'weight': maxWeight,
-            'reps': maxReps,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-          print('🎉 신기록!  ${exercise.exerciseName}: ${maxOneRM.toStringAsFixed(1)}kg (1RM)');
+                'exerciseId': exercise.exerciseId,
+                'exerciseName': exercise.exerciseName,
+                'recordType': '1RM',
+                'recordValue': maxOneRM,
+                'recordDate': Timestamp.now(),
+                'weight': maxWeight,
+                'reps': maxReps,
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+          print(
+            '🎉 신기록!  ${exercise.exerciseName}: ${maxOneRM.toStringAsFixed(1)}kg (1RM)',
+          );
         }
       }
     } catch (e) {
@@ -171,11 +174,8 @@ class WorkoutSessionService {
 
       return snapshot.docs.map((doc) {
         final data = doc.data();
-        return {
-          'id': doc.id,
-          ... data,
-        };
-      }). toList();
+        return {'id': doc.id, ...data};
+      }).toList();
     } catch (e) {
       print('최근 세션 조회 실패: $e');
       return [];
@@ -189,13 +189,13 @@ class WorkoutSessionService {
   ) async {
     try {
       final sessionDoc = await _db
-          . collection('users')
-          . doc(userId)
+          .collection('users')
+          .doc(userId)
           .collection('workout_sessions')
-          . doc(sessionId)
+          .doc(sessionId)
           .get();
 
-      if (!sessionDoc. exists) return null;
+      if (!sessionDoc.exists) return null;
 
       final sessionData = sessionDoc.data()!;
       sessionData['id'] = sessionDoc.id;
@@ -208,11 +208,11 @@ class WorkoutSessionService {
 
       final exercises = <Map<String, dynamic>>[];
 
-      for (var exerciseDoc in exercisesSnapshot. docs) {
+      for (var exerciseDoc in exercisesSnapshot.docs) {
         final exerciseData = exerciseDoc.data();
-        
+
         // 세트 목록 조회
-        final setsSnapshot = await exerciseDoc. reference
+        final setsSnapshot = await exerciseDoc.reference
             .collection('sets')
             .orderBy('setNumber')
             .get();
@@ -220,7 +220,7 @@ class WorkoutSessionService {
         exerciseData['sets'] = setsSnapshot.docs
             .map((setDoc) => setDoc.data())
             .toList();
-        
+
         exercises.add(exerciseData);
       }
 

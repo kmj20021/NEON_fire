@@ -2,15 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:neon_fire/screens/Login_page.dart';
+import 'package:neon_fire/screens/login/Login_page.dart';
 import 'package:neon_fire/screens/home_screen.dart';
-import 'package:neon_fire/screens/workout_screen.dart';
-import 'package:neon_fire/screens/mypage.dart';
-import 'package:neon_fire/screens/splash_screen.dart';
+import 'package:neon_fire/screens/workout/workout_screen.dart';
+import 'package:neon_fire/screens/login/mypage.dart';
+import 'package:neon_fire/screens/login/splash_screen.dart';
 import 'package:neon_fire/models/saved_routine.dart';
-import 'package:neon_fire/screens/active_workout_screen.dart';
+import 'package:neon_fire/screens/workout/active_workout_screen.dart';
 import 'package:neon_fire/screens/condition_status_screen.dart';
-import 'package:neon_fire/screens/performance_screen.dart';
+import 'package:neon_fire/screens/performance_screen_mvc.dart';
+import 'package:neon_fire/screens/group_buying/product_list_screen.dart';
+import 'package:neon_fire/screens/group_buying/my_participation.dart';
 
 /// Firebase Auth 상태 변화를 감지하는 ChangeNotifier
 class AuthNotifier extends ChangeNotifier {
@@ -105,9 +107,14 @@ class AppRouter {
                 case '운동':
                   // 운동 탭은 홈 화면을 표시하므로 현재 페이지 유지
                   break;
+                case '내 참여':
+                case '내참여':
+                  context.go('/my_participation');
+                  break;
                 case '프로틴 구매':
-                  // TODO: 프로틴 구매 페이지 구현
-                  debugPrint('프로틴 구매 페이지로 이동');
+                case '공동 구매':
+                case '공동구매':
+                  context.go('/product_list');
                   break;
                 case '마이 페이지':
                 case '마이페이지':
@@ -158,6 +165,10 @@ class AppRouter {
                 case '운동':
                   context.go('/home');
                   break;
+                case '내 참여':
+                case '내참여':
+                  context.go('/my_participation');
+                  break;
                 case '상태확인':
                 case '상태 확인':
                   context.go('/condition_status');
@@ -165,6 +176,10 @@ class AppRouter {
                 case '성과확인':
                 case '성과 확인':
                   context.go('/performance');
+                  break;
+                case '공동 구매':
+                case '공동구매':
+                  context.go('/product_list');
                   break;
                 default:
                   debugPrint('알 수 없는 페이지: $page');
@@ -188,8 +203,33 @@ class AppRouter {
               context.go('/home');
             },
             navigateToPage: (String page) {
-              if (page == '홈') {
-                context.go('/home');
+              switch (page) {
+                case '홈':
+                case '운동':
+                  context.go('/home');
+                  break;
+                case '내 참여':
+                case '내참여':
+                  context.go('/my_participation');
+                  break;
+                case '공동 구매':
+                case '공동구매':
+                  context.go('/product_list');
+                  break;
+                case '마이페이지':
+                case '마이 페이지':
+                  context.go('/mypage');
+                  break;
+                case '상태확인':
+                case '상태 확인':
+                  context.go('/condition_status');
+                  break;
+                case '성과확인':
+                case '성과 확인':
+                  context.go('/performance');
+                  break;
+                default:
+                  debugPrint('알 수 없는 페이지: $page');
               }
             },
             onStartWorkout: (List<int> workoutIds) {
@@ -247,8 +287,33 @@ class AppRouter {
               context.go('/workout');
             },
             navigateToPage: (String page) {
-              if (page == '홈') {
-                context.go('/home');
+              switch (page) {
+                case '홈':
+                case '운동':
+                  context.go('/home');
+                  break;
+                case '내 참여':
+                case '내참여':
+                  context.go('/my_participation');
+                  break;
+                case '공동 구매':
+                case '공동구매':
+                  context.go('/product_list');
+                  break;
+                case '마이페이지':
+                case '마이 페이지':
+                  context.go('/mypage');
+                  break;
+                case '상태확인':
+                case '상태 확인':
+                  context.go('/condition_status');
+                  break;
+                case '성과확인':
+                case '성과 확인':
+                  context.go('/performance');
+                  break;
+                default:
+                  debugPrint('알 수 없는 페이지: $page');
               }
             },
           );
@@ -273,6 +338,98 @@ class AppRouter {
                 case '운동':
                   context.go('/home');
                   break;
+                case '내 참여':
+                case '내참여':
+                  context.go('/my_participation');
+                  break;
+                case '성과확인':
+                case '성과 확인':
+                  context.go('/performance');
+                  break;
+                case '마이페이지':
+                case '마이 페이지':
+                  context.go('/mypage');
+                  break;
+                case '공동 구매':
+                case '공동구매':
+                  context.go('/product_list');
+                  break;
+                default:
+                  debugPrint('알 수 없는 페이지: $page');
+              }
+            },
+          );
+        },
+      ),
+
+      // 성과 확인 페이지 (MVC 패턴)
+      GoRoute(
+        path: '/performance',
+        name: 'performance',
+        builder: (context, state) {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) return const LoginScreen();
+
+          return PerformanceScreenMVC(
+            userId: user.uid,
+            onBack: () {
+              context.go('/home');
+            },
+            navigateToPage: (String page) {
+              switch (page) {
+                case '운동':
+                  context.go('/home');
+                  break;
+                case '내 참여':
+                case '내참여':
+                  context.go('/my_participation');
+                  break;
+                case '상태확인':
+                case '상태 확인':
+                  context.go('/condition_status');
+                  break;
+                case '마이페이지':
+                case '마이 페이지':
+                  context.go('/mypage');
+                  break;
+                case '공동 구매':
+                case '공동구매':
+                  context.go('/product_list');
+                  break;
+                default:
+                  debugPrint('알 수 없는 페이지: $page');
+              }
+            },
+          );
+        },
+      ),
+
+      // 공동 구매 페이지
+      GoRoute(
+        path: '/product_list',
+        name: 'product_list',
+        builder: (context, state) {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) return const LoginScreen();
+
+          return ProductListScreen(
+            userId: user.uid,
+            onBack: () {
+              context.go('/home');
+            },
+            navigateToPage: (String page) {
+              switch (page) {
+                case '운동':
+                  context.go('/home');
+                  break;
+                case '내 참여':
+                case '내참여':
+                  context.go('/my_participation');
+                  break;
+                case '상태확인':
+                case '상태 확인':
+                  context.go('/condition_status');
+                  break;
                 case '성과확인':
                 case '성과 확인':
                   context.go('/performance');
@@ -289,27 +446,36 @@ class AppRouter {
         },
       ),
 
-      // 성과 확인 페이지
+      // 내 참여 공동구매 페이지
       GoRoute(
-        path: '/performance',
-        name: 'performance',
+        path: '/my_participation',
+        name: 'my_participation',
         builder: (context, state) {
           final user = FirebaseAuth.instance.currentUser;
           if (user == null) return const LoginScreen();
 
-          return PerformanceScreen(
+          return MyParticipationScreen(
             userId: user.uid,
             onBack: () {
               context.go('/home');
             },
             navigateToPage: (String page) {
               switch (page) {
+                case '홈':
                 case '운동':
                   context.go('/home');
+                  break;
+                case '공동 구매':
+                case '공동구매':
+                  context.go('/product_list');
                   break;
                 case '상태확인':
                 case '상태 확인':
                   context.go('/condition_status');
+                  break;
+                case '성과확인':
+                case '성과 확인':
+                  context.go('/performance');
                   break;
                 case '마이페이지':
                 case '마이 페이지':

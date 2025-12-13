@@ -34,17 +34,14 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
 
   /// 프로필 사진 선택 (카메라 또는 갤러리)
   Future<void> _showImageSourceDialog() async {
-    showDialog(
+    final selectedSource = await showDialog<ImageSource>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('프로필 사진 선택'),
         content: const Text('어디서 사진을 선택하시겠습니까?'),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _pickAndUploadProfileImage(ImageSource.camera);
-            },
+            onPressed: () => Navigator.of(dialogContext).pop(ImageSource.camera),
             child: const Row(
               children: [
                 Icon(Icons.camera_alt, color: Color(0xFFFF5757)),
@@ -54,10 +51,7 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
             ),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _pickAndUploadProfileImage(ImageSource.gallery);
-            },
+            onPressed: () => Navigator.of(dialogContext).pop(ImageSource.gallery),
             child: const Row(
               children: [
                 Icon(Icons.photo_library, color: Color(0xFFFF5757)),
@@ -69,6 +63,10 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
         ],
       ),
     );
+
+    if (selectedSource != null) {
+      await _pickAndUploadProfileImage(selectedSource);
+    }
   }
 
   /// 프로필 사진 선택 및 업로드
@@ -77,17 +75,36 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
       final pickedFile = await _imagePicker.pickImage(
         source: source,
         imageQuality: 80,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        preferredCameraDevice: CameraDevice.front,
       );
 
-      if (pickedFile == null) return;
+      if (pickedFile == null) {
+        print('사용자가 이미지 선택을 취소했습니다');
+        return;
+      }
 
+      print('선택된 이미지 경로: ${pickedFile.path}');
+
+      if (!mounted) return;
       setState(() => _isUpdating = true);
 
       final imageFile = File(pickedFile.path);
+
+      // 파일 존재 확인
+      if (!await imageFile.exists()) {
+        throw Exception('이미지 파일을 찾을 수 없습니다');
+      }
+
+      print('이미지 파일 크기: ${await imageFile.length()} bytes');
+
       final imageUrl = await _authService.uploadProfileImage(
         _user.uid,
         imageFile,
       );
+
+      print('업로드된 이미지 URL: $imageUrl');
 
       // Firestore 업데이트
       await _authService.updateUserProfile(
@@ -96,6 +113,7 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
       );
 
       // 로컬 상태 업데이트
+      if (!mounted) return;
       setState(() {
         _user = _user.copyWith(profileImageUrl: imageUrl);
         _isUpdating = false;
@@ -109,13 +127,19 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('프로필 사진 업로드 실패: $e');
+      print('Stack trace: $stackTrace');
+
+      if (!mounted) return;
       setState(() => _isUpdating = false);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('프로필 사진 업로드 실패: $e'),
+            content: Text('프로필 사진 업로드 실패: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -124,151 +148,37 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
 
   /// 별명 수정 다이얼로그
   Future<void> _showNicknameEditDialog() async {
-    final controller = TextEditingController(text: _user.nickname);
-
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('별명 수정'),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(
-              hintText: '새로운 별명을 입력하세요',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-            ),
-            maxLength: 20,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(null),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final newNickname = controller.text.trim();
-
-                if (newNickname.isEmpty) {
-                  ScaffoldMessenger.of(
-                    dialogContext,
-                  ).showSnackBar(const SnackBar(content: Text('별명을 입력해주세요')));
-                  return;
-                }
-
-                Navigator.of(dialogContext).pop(newNickname);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF5757),
-              ),
-              child: const Text('저장', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
+        return _NicknameEditDialog(initialValue: _user.nickname);
       },
     );
 
-    controller.dispose();
-
     if (result != null && result.isNotEmpty) {
       await _updateNickname(result);
+    } else if (result != null && result.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('별명을 입력해주세요'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 
   /// 주소 수정 다이얼로그
   Future<void> _showAddressEditDialog() async {
-    final controller = TextEditingController(text: _user.address);
-
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
-        String? addressMessage;
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('주소 수정'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: controller,
-                    decoration: InputDecoration(
-                      hintText: '상세 주소를 입력하세요 (최소 5자)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                    ),
-                    maxLines: 3,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        final trimmed = value.trim();
-                        if (trimmed.length < 5) {
-                          addressMessage = '상세 주소를 입력해주세요. (최소 5자)';
-                        } else {
-                          addressMessage = null;
-                        }
-                      });
-                    },
-                  ),
-                  if (addressMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        addressMessage!,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFFF5757),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(null),
-                  child: const Text('취소'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final newAddress = controller.text.trim();
-
-                    if (newAddress.length < 5) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(content: Text('상세 주소를 입력해주세요. (최소 5자)')),
-                      );
-                      return;
-                    }
-
-                    Navigator.of(dialogContext).pop(newAddress);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF5757),
-                  ),
-                  child: const Text(
-                    '저장',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
+        return _AddressEditDialog(initialValue: _user.address);
       },
     );
-
-    controller.dispose();
 
     if (result != null && result.isNotEmpty) {
       await _updateAddress(result);
@@ -277,100 +187,13 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
 
   /// 전화번호 수정 다이얼로그
   Future<void> _showPhoneEditDialog() async {
-    final controller = TextEditingController(text: _user.phone);
-
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
-        String? phoneMessage;
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('전화번호 수정'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: controller,
-                    decoration: InputDecoration(
-                      hintText: '휴대폰 번호 (010-1234-5678)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                    ),
-                    keyboardType: TextInputType.phone,
-                    maxLength: 13,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        // 010-1234-5678 형식 대략 체크
-                        final onlyDigits = value.replaceAll(RegExp(r'\D'), '');
-                        final regex = RegExp(r'^010\d{8}$');
-
-                        if (!regex.hasMatch(onlyDigits)) {
-                          phoneMessage = '올바른 휴대폰 번호를 입력해주세요. (010-1234-5678)';
-                        } else {
-                          phoneMessage = null;
-                        }
-                      });
-                    },
-                  ),
-                  if (phoneMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        phoneMessage!,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFFF5757),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(null),
-                  child: const Text('취소'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final newPhone = controller.text.trim();
-                    final onlyDigits = newPhone.replaceAll(RegExp(r'\D'), '');
-                    final regex = RegExp(r'^010\d{8}$');
-
-                    if (!regex.hasMatch(onlyDigits)) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text('올바른 휴대폰 번호를 입력해주세요. (010-1234-5678)'),
-                        ),
-                      );
-                      return;
-                    }
-
-                    Navigator.of(dialogContext).pop(newPhone);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF5757),
-                  ),
-                  child: const Text(
-                    '저장',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
+        return _PhoneEditDialog(initialValue: _user.phone);
       },
     );
-
-    controller.dispose();
 
     if (result != null && result.isNotEmpty) {
       await _updatePhone(result);
@@ -387,6 +210,7 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
         nickname: newNickname,
       );
 
+      if (!mounted) return;
       setState(() {
         _user = _user.copyWith(nickname: newNickname);
         _isUpdating = false;
@@ -401,6 +225,7 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isUpdating = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -423,6 +248,7 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
         address: newAddress,
       );
 
+      if (!mounted) return;
       setState(() {
         _user = _user.copyWith(address: newAddress);
         _isUpdating = false;
@@ -437,6 +263,7 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isUpdating = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -454,8 +281,12 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
     try {
       setState(() => _isUpdating = true);
 
-      await _authService.updateUserProfile(userId: _user.uid, phone: newPhone);
+      await _authService.updateUserProfile(
+        userId: _user.uid, 
+        phone: newPhone,
+      );
 
+      if (!mounted) return;
       setState(() {
         _user = _user.copyWith(phone: newPhone);
         _isUpdating = false;
@@ -470,6 +301,7 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isUpdating = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -568,60 +400,66 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 프로필 이미지
-          Stack(
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  shape: BoxShape.circle,
-                  image: _user.profileImageUrl != null
-                      ? DecorationImage(
-                          image: NetworkImage(_user.profileImageUrl!),
-                          fit: BoxFit.cover,
+          // 프로필 이미지 - 가운데 정렬
+          Center(
+            child: Stack(
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    shape: BoxShape.circle,
+                    image: _user.profileImageUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(_user.profileImageUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: _user.profileImageUrl == null
+                      ? Icon(
+                          Icons.person,
+                          size: 50,
+                          color: Colors.grey.shade400,
                         )
                       : null,
                 ),
-                child: _user.profileImageUrl == null
-                    ? Icon(Icons.person, size: 50, color: Colors.grey.shade400)
-                    : null,
-              ),
-              // 카메라 버튼
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: _isUpdating ? null : _showImageSourceDialog,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: primaryColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                    ),
-                    child: _isUpdating
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                // 카메라 버튼
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: _isUpdating ? null : _showImageSourceDialog,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: _isUpdating
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
+                            )
+                          : const Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 18,
                             ),
-                          )
-                        : const Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 18,
-                          ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -728,6 +566,267 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+// ====== 별도의 다이얼로그 위젯들 ======
+
+/// 별명 수정 다이얼로그
+class _NicknameEditDialog extends StatelessWidget {
+  final String initialValue;
+
+  const _NicknameEditDialog({required this.initialValue});
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = TextEditingController(text: initialValue);
+
+    return AlertDialog(
+      title: const Text('별명 수정'),
+      content: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          hintText: '새로운 별명을 입력하세요',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+        ),
+        maxLength: 20,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(null),
+          child: const Text('취소'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final newNickname = controller.text.trim();
+            if (newNickname.isEmpty) {
+              return;
+            }
+            Navigator.of(context).pop(newNickname);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFF5757),
+          ),
+          child: const Text('저장', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    );
+  }
+}
+
+/// 주소 수정 다이얼로그
+class _AddressEditDialog extends StatefulWidget {
+  final String initialValue;
+
+  const _AddressEditDialog({required this.initialValue});
+
+  @override
+  State<_AddressEditDialog> createState() => _AddressEditDialogState();
+}
+
+class _AddressEditDialogState extends State<_AddressEditDialog> {
+  late TextEditingController _controller;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _validateAndSubmit() {
+    final newAddress = _controller.text.trim();
+    if (newAddress.length < 5) {
+      setState(() {
+        _errorMessage = '상세 주소를 입력해주세요. (최소 5자)';
+      });
+      return;
+    }
+    Navigator.of(context).pop(newAddress);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('주소 수정'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _controller,
+            decoration: InputDecoration(
+              hintText: '상세 주소를 입력하세요 (최소 5자)',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+            ),
+            maxLines: 3,
+            onChanged: (value) {
+              setState(() {
+                final trimmed = value.trim();
+                if (trimmed.length < 5) {
+                  _errorMessage = '상세 주소를 입력해주세요. (최소 5자)';
+                } else {
+                  _errorMessage = null;
+                }
+              });
+            },
+          ),
+          if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFFFF5757),
+                ),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(null),
+          child: const Text('취소'),
+        ),
+        ElevatedButton(
+          onPressed: _validateAndSubmit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFF5757),
+          ),
+          child: const Text(
+            '저장',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 전화번호 수정 다이얼로그
+class _PhoneEditDialog extends StatefulWidget {
+  final String initialValue;
+
+  const _PhoneEditDialog({required this.initialValue});
+
+  @override
+  State<_PhoneEditDialog> createState() => _PhoneEditDialogState();
+}
+
+class _PhoneEditDialogState extends State<_PhoneEditDialog> {
+  late TextEditingController _controller;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _validateAndSubmit() {
+    final newPhone = _controller.text.trim();
+    final onlyDigits = newPhone.replaceAll(RegExp(r'\D'), '');
+    final regex = RegExp(r'^010\d{8}$');
+
+    if (!regex.hasMatch(onlyDigits)) {
+      setState(() {
+        _errorMessage = '올바른 휴대폰 번호를 입력해주세요. (010-1234-5678)';
+      });
+      return;
+    }
+    Navigator.of(context).pop(newPhone);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('전화번호 수정'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _controller,
+            decoration: InputDecoration(
+              hintText: '휴대폰 번호 (010-1234-5678)',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+            ),
+            keyboardType: TextInputType.phone,
+            maxLength: 13,
+            onChanged: (value) {
+              setState(() {
+                final onlyDigits = value.replaceAll(RegExp(r'\D'), '');
+                final regex = RegExp(r'^010\d{8}$');
+
+                if (!regex.hasMatch(onlyDigits)) {
+                  _errorMessage = '올바른 휴대폰 번호를 입력해주세요. (010-1234-5678)';
+                } else {
+                  _errorMessage = null;
+                }
+              });
+            },
+          ),
+          if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFFFF5757),
+                ),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(null),
+          child: const Text('취소'),
+        ),
+        ElevatedButton(
+          onPressed: _validateAndSubmit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFF5757),
+          ),
+          child: const Text(
+            '저장',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      ],
     );
   }
 }

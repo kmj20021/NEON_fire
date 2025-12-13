@@ -13,7 +13,7 @@ import 'package:neon_fire/services/exercise_services/routine_service.dart';
 import 'package:neon_fire/services/exercise_services/exercise_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String userId; 
+  final String userId;
   final VoidCallback onLogout;
   final VoidCallback onNavigateToWorkout;
   final Function(String) navigateToPage;
@@ -22,7 +22,7 @@ class HomeScreen extends StatefulWidget {
 
   const HomeScreen({
     Key? key,
-    required this.userId, 
+    required this.userId,
     required this.onLogout,
     required this.onNavigateToWorkout,
     required this.navigateToPage,
@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isLoadingCalendar = true;
   bool isLoadingWeeklyData = true;
   bool isLoadingRecommendation = true;
-  
+
   // 루틴 관련
   List<SavedRoutine> userRoutines = [];
   String? expandedRoutineId;
@@ -71,6 +71,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadAllData();
   }
 
+  @override
+  void dispose() {
+    // 리소스 정리
+    super.dispose();
+  }
+
   /// 모든 데이터 로드
   Future<void> _loadAllData() async {
     await Future.wait([
@@ -84,11 +90,15 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 캘린더 데이터 로드 (현재 주)
   Future<void> _loadCalendarData() async {
     try {
+      if (!mounted) return;
       setState(() => isLoadingCalendar = true);
 
       // 현재 주 캘린더 로드
-      final days = await _calendarService.generateCurrentWeekCalendar(widget.userId);
+      final days = await _calendarService.generateCurrentWeekCalendar(
+        widget.userId,
+      );
 
+      if (!mounted) return;
       setState(() {
         calendarDays = days;
         isLoadingCalendar = false;
@@ -97,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } catch (e) {
       print('캘린더 데이터 로드 실패: $e');
+      if (!mounted) return;
       setState(() => isLoadingCalendar = false);
     }
   }
@@ -104,14 +115,17 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 주간 운동 데이터 로드
   Future<void> _loadWeeklyWorkoutData() async {
     try {
+      if (!mounted) return;
       setState(() => isLoadingWeeklyData = true);
 
       print('🔄 주간 운동 데이터 로드 시작 (userId: ${widget.userId})');
-      final weekData =
-          await _statsService.getWeeklyWorkoutData(widget.userId);
+      final weekData = await _statsService.getWeeklyWorkoutData(widget.userId);
 
-      print('📈 로드된 주간 데이터: ${weekData.map((d) => '${d.day}:${d.minutes}분').join(', ')}');
+      print(
+        '📈 로드된 주간 데이터: ${weekData.map((d) => '${d.day}:${d.minutes}분').join(', ')}',
+      );
 
+      if (!mounted) return;
       setState(() {
         weeklyWorkoutData = weekData;
         isLoadingWeeklyData = false;
@@ -120,6 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
       print('✅ 주간 데이터 setState 완료');
     } catch (e) {
       print('❌ 주간 데이터 로드 실패: $e');
+      if (!mounted) return;
       setState(() => isLoadingWeeklyData = false);
     }
   }
@@ -130,6 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // calendarDays가 이미 로드되어 있으면 계산
       if (calendarDays.isNotEmpty) {
         final workoutCount = calendarDays.where((day) => day.hasWorkout).length;
+        if (!mounted) return;
         setState(() => weeklyWorkoutDays = workoutCount);
       }
     } catch (e) {
@@ -140,19 +156,20 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 추천 운동 로드
   Future<void> _loadRecommendedExercise() async {
     try {
+      if (!mounted) return;
       setState(() => isLoadingRecommendation = true);
 
-      final exercise =
-          await _recommendationService. getRecommendedExerciseAdvanced(
-        widget.userId,
-      );
+      final exercise = await _recommendationService
+          .getRecommendedExerciseAdvanced(widget.userId);
 
+      if (!mounted) return;
       setState(() {
         recommendedExercise = exercise;
         isLoadingRecommendation = false;
       });
     } catch (e) {
       print('추천 운동 로드 실패: $e');
+      if (!mounted) return;
       setState(() => isLoadingRecommendation = false);
     }
   }
@@ -160,13 +177,22 @@ class _HomeScreenState extends State<HomeScreen> {
   String _getCurrentMonthYear() {
     final today = DateTime.now();
     const monthNames = [
-      '1월', '2월', '3월', '4월', '5월', '6월',
-      '7월', '8월', '9월', '10월', '11월', '12월'
+      '1월',
+      '2월',
+      '3월',
+      '4월',
+      '5월',
+      '6월',
+      '7월',
+      '8월',
+      '9월',
+      '10월',
+      '11월',
+      '12월',
     ];
     return '${today.year} ${monthNames[today.month - 1]}';
   }
 
-  
   @override
   Widget build(BuildContext context) {
     // 🔙 안드로이드 뒤로가기 버튼 처리: 홈 화면에서는 앱 종료
@@ -181,94 +207,95 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFFAFAFA),
         body: Stack(
-        children: [
-          CustomScrollView(
-            slivers: [
-              // Fixed Header
-              SliverAppBar(
-                backgroundColor: Colors.white,
-                pinned: true,
-                elevation: 0,
-                toolbarHeight: 60,
-                automaticallyImplyLeading: false,
-                flexibleSpace: SafeArea(
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          onPressed: () =>
-                              widget.navigateToPage('프로틴 구매'),
-                          icon: const Icon(Icons.shopping_cart,
-                              color: Colors.black54),
-                        ),
-                        Row(
-                          children: [
-                            Image.asset('assets/images/logo.png',
-                                width: 32, height: 32),
-                            const SizedBox(width: 8),
-                            const Text(
-                              '프로해빗',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black87,
-                              ),
+          children: [
+            CustomScrollView(
+              slivers: [
+                // Fixed Header
+                SliverAppBar(
+                  backgroundColor: Colors.white,
+                  pinned: true,
+                  elevation: 0,
+                  toolbarHeight: 60,
+                  automaticallyImplyLeading: false,
+                  flexibleSpace: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            onPressed: () => widget.navigateToPage('내 참여'),
+                            icon: const Icon(
+                              Icons.shopping_cart,
+                              color: Colors.black54,
                             ),
-                          ],
-                        ),
-                        const SizedBox(width: 48), // 균형을 위한 빈 공간
-                      ],
+                          ),
+                          Row(
+                            children: [
+                              Image.asset(
+                                'assets/images/logo.png',
+                                width: 32,
+                                height: 32,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                '프로해빗',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            onPressed: () => widget.navigateToPage('마이페이지'),
+                            icon: const Icon(
+                              Icons.person,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              // Main Content
-              SliverPadding(
-                padding: const EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 24,
-                  bottom: 160,
+                // Main Content
+                SliverPadding(
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 24,
+                    bottom: 160,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _buildRecommendedExerciseWidget(),
+                      const SizedBox(height: 24),
+                      _buildCalendarWidget(),
+                      const SizedBox(height: 24),
+                      _buildWorkoutChart(),
+                      const SizedBox(height: 24),
+                      _buildActionButtons(),
+                    ]),
+                  ),
                 ),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    _buildRecommendedExerciseWidget(),
-                    const SizedBox(height: 24),
-                    _buildCalendarWidget(),
-                    const SizedBox(height: 24),
-                    _buildWorkoutChart(),
-                    const SizedBox(height: 24),
-                    _buildActionButtons(),
-                  ]),
-                ),
-              ),
-            ],
-          ),
-
-          // Floating Protein Button
-          Positioned(
-            bottom: 130,
-            right: 16,
-            child: FloatingActionButton(
-              onPressed: () => widget.navigateToPage('프로틴 구매'),
-              backgroundColor: primaryColor,
-              child: const Icon(Icons.shopping_bag, color: Colors.white),
+              ],
             ),
-          ),
 
-          // Bottom Navigation Bar
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _buildBottomNavigation(),
-          ),
-        ],
-      ),
+            // Bottom Navigation Bar
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildBottomNavigation(),
+            ),
+          ],
+        ),
       ), // PopScope 닫기
     );
   }
@@ -282,13 +309,13 @@ class _HomeScreenState extends State<HomeScreen> {
       return _buildErrorWidget('추천 운동을 불러올 수 없습니다', _loadRecommendedExercise);
     }
 
-    final exercise = recommendedExercise! ;
+    final exercise = recommendedExercise!;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primaryColor. withOpacity(0.3), width: 2),
+        border: Border.all(color: primaryColor.withOpacity(0.3), width: 2),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -314,7 +341,8 @@ class _HomeScreenState extends State<HomeScreen> {
               Icon(Icons.access_time, color: primaryColor, size: 18),
               const SizedBox(width: 6),
               Text(
-                exercise.daysSinceLastWorkout == 0 || exercise.daysSinceLastWorkout > 100
+                exercise.daysSinceLastWorkout == 0 ||
+                        exercise.daysSinceLastWorkout > 100
                     ? '${exercise.muscleGroup} 운동은 어떠신가요?'
                     : '마지막 ${exercise.muscleGroup} 운동 후 ${exercise.daysSinceLastWorkout}일 경과!',
                 style: TextStyle(
@@ -329,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey. shade50,
+              color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -342,7 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.grey.shade200,
                     child: exercise.imagePath != null
                         ? Image.asset(
-                            exercise. imagePath!,
+                            exercise.imagePath!,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
                                 _buildPlaceholderIcon(),
@@ -369,7 +397,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           exercise.description!,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors. grey.shade700,
+                            color: Colors.grey.shade700,
                             height: 1.3,
                           ),
                           maxLines: 2,
@@ -382,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: primaryColor. withOpacity(0.1),
+                          color: primaryColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
@@ -416,12 +444,11 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton. icon(
+            child: OutlinedButton.icon(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content:
-                        Text('${exercise.exerciseName}을(를) 루틴에 추가했습니다!'),
+                    content: Text('${exercise.exerciseName}을(를) 루틴에 추가했습니다!'),
                     duration: const Duration(seconds: 2),
                   ),
                 );
@@ -477,10 +504,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Text(
                     _getCurrentMonthYear(),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -493,10 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: Text(
                   '전체보기',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ),
             ],
@@ -528,10 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   weeklyWorkoutDays == 0
                       ? '첫 운동을 시작하면 출석 기록이 시작됩니다'
                       : '꾸준함이 가장 중요해요! 응원합니다!',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
@@ -549,25 +567,25 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Row(
           children: weekDays
-              .map((day) => Expanded(
-                    child: Center(
-                      child: Text(
-                        day,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
+              .map(
+                (day) => Expanded(
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
                       ),
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
         ),
         const SizedBox(height: 8),
         Row(
           children: calendarDays
-              .map((day) => Expanded(
-                    child: _buildCalendarDay(day),
-                  ))
+              .map((day) => Expanded(child: _buildCalendarDay(day)))
               .toList(),
         ),
       ],
@@ -585,20 +603,20 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor = const Color(0xFFFF5757);
       textColor = Colors.white;
       fontWeight = FontWeight.w500;
-      
+
       // 운동한 날이면서 오늘인 경우에도 배경색 유지
       if (day.isToday) {
         // 배경색은 그대로, 테두리는 추가하지 않음
         // 또는 약간 더 진한 테두리를 원한다면:
         // border = Border.all(color: const Color(0xFFCC4646), width: 2);
       }
-    } 
+    }
     // 2순위: 오늘 (운동 안한 경우) - 0xFFFF5757 테두리
     else if (day.isToday) {
       border = Border.all(color: const Color(0xFFFF5757), width: 2);
       textColor = Colors.black87;
       fontWeight = FontWeight.w500;
-    } 
+    }
     // 3순위: 이번 달이 아닌 날 - 회색 처리
     else if (!day.isCurrentMonth) {
       textColor = Colors.grey.shade400;
@@ -630,43 +648,46 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 전체 캘린더 모달 표시
   void _showFullCalendarModal() async {
     final now = DateTime.now();
-    
+
     // 이번 달 운동 날짜 가져오기
     final workoutDates = await _calendarService.getWorkoutDatesForMonth(
       widget.userId,
       now.year,
       now.month,
     );
-    
+
     // 이번 달 캘린더 생성
     final firstDay = DateTime(now.year, now.month, 1);
     final startDate = firstDay.subtract(Duration(days: firstDay.weekday % 7));
     final today = DateTime(now.year, now.month, now.day);
-    
+
     final monthDays = <CalendarDay>[];
     var currentDate = startDate;
-    
+
     for (int i = 0; i < 42; i++) {
       final isCurrentMonth = currentDate.month == now.month;
-      final isToday = currentDate.year == today.year &&
+      final isToday =
+          currentDate.year == today.year &&
           currentDate.month == today.month &&
           currentDate.day == today.day;
       final hasWorkout = workoutDates.contains(currentDate);
-      
-      monthDays.add(CalendarDay(
-        date: currentDate,
-        day: currentDate.day,
-        isCurrentMonth: isCurrentMonth,
-        isToday: isToday,
-        hasWorkout: hasWorkout,
-      ));
-      
+
+      monthDays.add(
+        CalendarDay(
+          date: currentDate,
+          day: currentDate.day,
+          isCurrentMonth: isCurrentMonth,
+          isToday: isToday,
+          hasWorkout: hasWorkout,
+        ),
+      );
+
       currentDate = currentDate.add(const Duration(days: 1));
     }
-    
+
     // 모달 표시
     if (!mounted) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -704,37 +725,44 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 월간 캘린더 그리드
   Widget _buildFullMonthCalendar(List<CalendarDay> monthDays) {
     final weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-    
+
     return Column(
       children: [
         // 요일 헤더
         Row(
-          children: weekDays.map((day) => Expanded(
-            child: Center(
-              child: Text(
-                day,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade600,
+          children: weekDays
+              .map(
+                (day) => Expanded(
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          )).toList(),
+              )
+              .toList(),
         ),
         const SizedBox(height: 8),
         // 6주 그리드
         ...List.generate(6, (weekIndex) {
           final start = weekIndex * 7;
           final end = start + 7;
-          final weekDays = monthDays.sublist(start, end.clamp(0, monthDays.length));
-          
+          final weekDays = monthDays.sublist(
+            start,
+            end.clamp(0, monthDays.length),
+          );
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Row(
-              children: weekDays.map((day) => Expanded(
-                child: _buildCalendarDay(day),
-              )).toList(),
+              children: weekDays
+                  .map((day) => Expanded(child: _buildCalendarDay(day)))
+                  .toList(),
             ),
           );
         }),
@@ -773,18 +801,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Row(
                 children: [
-                  Container(
-                    width: 12,
-                    height: 2,
-                    color: primaryColor,
-                  ),
+                  Container(width: 12, height: 2, color: primaryColor),
                   const SizedBox(width: 8),
                   Text(
                     '운동시간',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -800,10 +821,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   drawVerticalLine: false,
                   horizontalInterval: 30,
                   getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors. grey.shade200,
-                      strokeWidth: 1,
-                    );
+                    return FlLine(color: Colors.grey.shade200, strokeWidth: 1);
                   },
                 ),
                 titlesData: FlTitlesData(
@@ -814,12 +832,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       interval: 30,
                       getTitlesWidget: (value, meta) {
                         String text;
-                        if (value == 0) text = '0분';
-                        else if (value == 30) text = '30분';
-                        else if (value == 60) text = '1시간';
-                        else if (value == 120) text = '2시간';
-                        else if (value >= 180) text = '3시간+';
-                        else return Container();
+                        if (value == 0)
+                          text = '0분';
+                        else if (value == 30)
+                          text = '30분';
+                        else if (value == 60)
+                          text = '1시간';
+                        else if (value == 120)
+                          text = '2시간';
+                        else if (value >= 180)
+                          text = '3시간+';
+                        else
+                          return Container();
 
                         return Text(
                           text,
@@ -835,15 +859,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        if (value. toInt() >= 0 &&
+                        if (value.toInt() >= 0 &&
                             value.toInt() < weeklyWorkoutData.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
                             child: Text(
-                              weeklyWorkoutData[value.toInt()]. day,
+                              weeklyWorkoutData[value.toInt()].day,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors. grey.shade600,
+                                color: Colors.grey.shade600,
                               ),
                             ),
                           );
@@ -875,10 +899,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     spots: weeklyWorkoutData
                         .asMap()
                         .entries
-                        .map((e) => FlSpot(
-                              e.key.toDouble(),
-                              e.value. minutes. toDouble(),
-                            ))
+                        .map(
+                          (e) => FlSpot(
+                            e.key.toDouble(),
+                            e.value.minutes.toDouble(),
+                          ),
+                        )
                         .toList(),
                     isCurved: true,
                     preventCurveOverShooting: true, // 곡선 오버슈팅(시간 음수) 방지
@@ -906,10 +932,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: _showWeeklyWorkoutSummary,
             child: Text(
               '자세히보기',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ),
         ],
@@ -917,11 +940,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-   // 최대 Y값 계산
+  // 최대 Y값 계산
   double _getMaxYValue() {
     if (weeklyWorkoutData.isEmpty) return 180;
-    final maxMinutes =
-        weeklyWorkoutData. map((w) => w.minutes).reduce((a, b) => a > b ? a : b);
+    final maxMinutes = weeklyWorkoutData
+        .map((w) => w.minutes)
+        .reduce((a, b) => a > b ? a : b);
     if (maxMinutes == 0) return 180;
     // 최대값의 120% 또는 최소 180
     return (maxMinutes * 1.2).clamp(180, double.infinity);
@@ -934,7 +958,7 @@ class _HomeScreenState extends State<HomeScreen> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: () => widget.navigateToPage('운동'),
+            onPressed: widget.onNavigateToWorkout,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
@@ -945,7 +969,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons. fitness_center, size: 20),
+                Icon(Icons.fitness_center, size: 20),
                 SizedBox(width: 8),
                 Text('운동 시작하기'),
               ],
@@ -984,15 +1008,13 @@ class _HomeScreenState extends State<HomeScreen> {
       {'id': '운동', 'icon': Icons.fitness_center, 'label': '운동'},
       {'id': '상태확인', 'icon': Icons.assessment, 'label': '상태확인'},
       {'id': '성과확인', 'icon': Icons.bar_chart, 'label': '성과확인'},
-      {'id': '마이페이지', 'icon': Icons.person, 'label': '마이페이지'},
+      {'id': '공동구매', 'icon': Icons.shopping_bag, 'label': '공동 구매'},
     ];
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade200),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: SafeArea(
@@ -1003,17 +1025,16 @@ class _HomeScreenState extends State<HomeScreen> {
             final isActive = item['id'] == '운동';
             return InkWell(
               onTap: () {
-                if (item['id'] == '마이페이지') {
-                  // 마이페이지는 Navigator.push로 전체 화면 이동 (바텀 네비 없음)
-                  widget.navigateToPage('마이페이지');
-                } else if (item['id'] != '운동') {
+                if (item['id'] != '운동') {
                   widget.navigateToPage(item['label'] as String);
                 }
                 // 운동은 현재 페이지(홈 화면)이므로 아무것도 하지 않음
               },
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isActive ? primaryColor : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
@@ -1054,9 +1075,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       padding: const EdgeInsets.all(16),
       height: 150,
-      child: const Center(
-        child: CircularProgressIndicator(),
-      ),
+      child: const Center(child: CircularProgressIndicator()),
     );
   }
 
@@ -1072,15 +1091,9 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
           const SizedBox(height: 8),
-          Text(
-            message,
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
+          Text(message, style: TextStyle(color: Colors.grey.shade600)),
           const SizedBox(height: 8),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('다시 시도'),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
         ],
       ),
     );
@@ -1089,11 +1102,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPlaceholderIcon() {
     return Container(
       color: Colors.grey.shade300,
-      child: Icon(
-        Icons.fitness_center,
-        size: 40,
-        color: Colors.grey.shade600,
-      ),
+      child: Icon(Icons.fitness_center, size: 40, color: Colors.grey.shade600),
     );
   }
 
@@ -1102,37 +1111,38 @@ class _HomeScreenState extends State<HomeScreen> {
     print('🔵 루틴 모달 열기 시작');
     print('  - userId: ${widget.userId}');
     print('═══════════════════════════════════════');
-    
+
     // 로딩 다이얼로그 표시
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     // Firebase에서 루틴 목록 가져오기
     print('🔄 루틴 불러오기 시작...');
     final routines = await _routineService.getUserRoutines(widget.userId);
     print('✅ 루틴 ${routines.length}개 불러옴');
-    
+
     if (routines.isNotEmpty) {
       print('📋 불러온 루틴 목록:');
       for (var i = 0; i < routines.length; i++) {
-        print('  ${i + 1}. ${routines[i].name} (${routines[i].workouts.length}개 운동)');
+        print(
+          '  ${i + 1}. ${routines[i].name} (${routines[i].workouts.length}개 운동)',
+        );
       }
     } else {
       print('⚠️ 저장된 루틴이 없습니다!');
       print('  팁: 운동 화면에서 루틴을 저장해보세요.');
     }
     print('═══════════════════════════════════════');
-    
+
     if (!mounted) return;
-    
+
     // 로딩 다이얼로그 닫기
     Navigator.of(context).pop();
-    
+
+    if (!mounted) return;
     setState(() {
       userRoutines = routines;
       expandedRoutineId = null;
@@ -1140,13 +1150,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (statefulContext, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Container(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.8,
-              maxWidth: MediaQuery.of(context).size.width * 1.0,
+              maxHeight: MediaQuery.of(dialogContext).size.height * 0.8,
+              maxWidth: MediaQuery.of(dialogContext).size.width * 1.0,
             ),
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -1160,7 +1172,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.folder_open, color: primaryColor, size: 24),
+                          Icon(
+                            Icons.folder_open,
+                            color: primaryColor,
+                            size: 24,
+                          ),
                           const SizedBox(width: 8),
                           const Text(
                             '저장된 루틴',
@@ -1172,7 +1188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                       IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
                         icon: const Icon(Icons.close),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -1182,10 +1198,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 8),
                   Text(
                     '루틴을 선택하여 운동을 시작하세요',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 16),
 
@@ -1197,10 +1210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             itemCount: userRoutines.length,
                             itemBuilder: (context, index) {
                               final routine = userRoutines[index];
-                              return _buildRoutineItem(
-                                routine,
-                                setDialogState,
-                              );
+                              return _buildRoutineItem(routine, setDialogState);
                             },
                           ),
                   ),
@@ -1213,7 +1223,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            Navigator.of(context).pop();
+                            Navigator.of(dialogContext).pop();
                             widget.onNavigateToWorkout();
                           },
                           icon: const Icon(Icons.add, size: 20),
@@ -1230,11 +1240,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           onPressed: expandedRoutineId == null
                               ? null
                               : () {
-                                  final selectedRoutine = userRoutines.firstWhere(
-                                    (r) => r.id == expandedRoutineId,
+                                  final selectedRoutine = userRoutines
+                                      .firstWhere(
+                                        (r) => r.id == expandedRoutineId,
+                                      );
+                                  Navigator.of(dialogContext).pop();
+                                  widget.onStartWorkoutWithRoutine(
+                                    selectedRoutine,
                                   );
-                                  Navigator.of(context).pop();
-                                  widget.onStartWorkoutWithRoutine(selectedRoutine);
                                 },
                           icon: const Icon(Icons.fitness_center, size: 20),
                           label: const Text('루틴으로 운동하기'),
@@ -1286,10 +1299,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
           Text(
             '새로운 루틴을 만들어보세요!',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),
         ],
       ),
@@ -1314,9 +1324,11 @@ class _HomeScreenState extends State<HomeScreen> {
           InkWell(
             onTap: () {
               setDialogState(() {
-                setState(() {
-                  expandedRoutineId = isExpanded ? null : routine.id;
-                });
+                if (mounted) {
+                  setState(() {
+                    expandedRoutineId = isExpanded ? null : routine.id;
+                  });
+                }
               });
             },
             borderRadius: BorderRadius.circular(12),
@@ -1338,8 +1350,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.calendar_today,
-                                size: 12, color: Colors.grey.shade600),
+                            Icon(
+                              Icons.calendar_today,
+                              size: 12,
+                              color: Colors.grey.shade600,
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -1352,8 +1367,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            Icon(Icons.list,
-                                size: 12, color: Colors.grey.shade600),
+                            Icon(
+                              Icons.list,
+                              size: 12,
+                              color: Colors.grey.shade600,
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -1442,10 +1460,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Text(
                     '운동 정보를 불러오는 중 오류가 발생했습니다',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.red.shade700,
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.red.shade700),
                   ),
                 );
               }
@@ -1470,7 +1485,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               final exercises = snapshot.data!;
               print('✅ 운동 정보 ${exercises.length}개 로드됨');
-              
+
               return ConstrainedBox(
                 constraints: const BoxConstraints(
                   maxHeight: 300, // 최대 높이 제한
@@ -1543,7 +1558,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _deleteRoutine(SavedRoutine routine, StateSetter setDialogState) async {
+  Future<void> _deleteRoutine(
+    SavedRoutine routine,
+    StateSetter setDialogState,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1565,22 +1583,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (confirmed == true) {
-      final success = await _routineService.deleteRoutine(widget.userId, routine.id);
-      
+      final success = await _routineService.deleteRoutine(
+        widget.userId,
+        routine.id,
+      );
+
       if (success) {
         setDialogState(() {
-          setState(() {
-            userRoutines.removeWhere((r) => r.id == routine.id);
-            if (expandedRoutineId == routine.id) {
-              expandedRoutineId = null;
-            }
-          });
+          if (mounted) {
+            setState(() {
+              userRoutines.removeWhere((r) => r.id == routine.id);
+              if (expandedRoutineId == routine.id) {
+                expandedRoutineId = null;
+              }
+            });
+          }
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('루틴이 삭제되었습니다')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('루틴이 삭제되었습니다')));
         }
       } else {
         if (mounted) {
@@ -1601,9 +1624,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     // 데이터 로드
@@ -1708,22 +1729,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 16),
 
                 // 인사이트
-                _buildInsightSection(
-                  '📊 인사이트',
-                  [
-                    if (summary.workoutDays > 0) ...[
-                      '평균 운동 시간: ${summary.avgDuration.toStringAsFixed(0)}분',
-                      '가장 열심히 한 요일: ${summary.mostActiveDay} (${summary.maxDailyDuration}분)',
-                      if (summary.workoutDays >= 5)
-                        '🔥 이번 주 ${summary.workoutDays}일 운동! 정말 대단해요!'
-                      else if (summary.workoutDays >= 3)
-                        '💪 꾸준히 하고 있어요! 조금만 더 힘내세요!'
-                      else
-                        '🌟 시작이 반이에요! 더 자주 운동해봐요!',
-                    ] else
-                      '이번 주는 아직 운동 기록이 없어요. 오늘부터 시작해볼까요?',
-                  ],
-                ),
+                _buildInsightSection('📊 인사이트', [
+                  if (summary.workoutDays > 0) ...[
+                    '평균 운동 시간: ${summary.avgDuration.toStringAsFixed(0)}분',
+                    '가장 열심히 한 요일: ${summary.mostActiveDay} (${summary.maxDailyDuration}분)',
+                    if (summary.workoutDays >= 5)
+                      '🔥 이번 주 ${summary.workoutDays}일 운동! 정말 대단해요!'
+                    else if (summary.workoutDays >= 3)
+                      '💪 꾸준히 하고 있어요! 조금만 더 힘내세요!'
+                    else
+                      '🌟 시작이 반이에요! 더 자주 운동해봐요!',
+                  ] else
+                    '이번 주는 아직 운동 기록이 없어요. 오늘부터 시작해볼까요?',
+                ]),
 
                 if (summary.topExercises.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -1732,7 +1750,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     summary.topExercises
                         .asMap()
                         .entries
-                        .map((e) => '${e.key + 1}. ${e.value} (${summary.exerciseCount[e.value]}회)')
+                        .map(
+                          (e) =>
+                              '${e.key + 1}. ${e.value} (${summary.exerciseCount[e.value]}회)',
+                        )
                         .toList(),
                   ),
                 ],
@@ -1764,7 +1785,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+  Widget _buildSummaryCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1776,10 +1802,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             child: Icon(icon, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 16),
@@ -1788,10 +1811,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 4),
               Text(
@@ -1809,7 +1829,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSmallSummaryCard(String title, String value, IconData icon, Color color) {
+  Widget _buildSmallSummaryCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1823,10 +1848,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 4),
           Text(
@@ -1848,31 +1870,30 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        ...insights.map((insight) => Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('• ', style: TextStyle(fontSize: 14)),
-              Expanded(
-                child: Text(
-                  insight,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
-                    height: 1.4,
+        ...insights.map(
+          (insight) => Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('• ', style: TextStyle(fontSize: 14)),
+                Expanded(
+                  child: Text(
+                    insight,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                      height: 1.4,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        )),
+        ),
       ],
     );
   }

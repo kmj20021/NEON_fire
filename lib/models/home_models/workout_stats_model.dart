@@ -44,10 +44,7 @@ class WeeklyWorkoutData {
   final String day;
   final int minutes;
 
-  WeeklyWorkoutData({
-    required this.day,
-    required this.minutes,
-  });
+  WeeklyWorkoutData({required this.day, required this.minutes});
 }
 
 /// 주간 운동 요약 정보
