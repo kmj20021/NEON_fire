@@ -5,19 +5,43 @@ import 'package:neon_fire/models/performance_models.dart';
 class PerformanceService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// 기간별 성과 요약 조회
-  Future<PerformanceSummary> getPerformanceSummary(
+  // 캐시된 데이터
+  List<QueryDocumentSnapshot>? _cachedCurrentSessions;
+  List<QueryDocumentSnapshot>? _cachedPreviousSessions;
+  String? _cachedUserId;
+  PerformancePeriod? _cachedPeriod;
+  DateTime? _cacheTime;
+
+  /// 캐시 유효성 검사 (1분)
+  bool _isCacheValid(String userId, PerformancePeriod period) {
+    if (_cachedCurrentSessions == null ||
+        _cachedUserId != userId ||
+        _cachedPeriod != period ||
+        _cacheTime == null) {
+      return false;
+    }
+
+    final now = DateTime.now();
+    return now.difference(_cacheTime!) < const Duration(minutes: 1);
+  }
+
+  /// 세션 데이터 미리 로드 (한 번의 쿼리로)
+  Future<void> _loadSessionsIfNeeded(
     String userId,
     PerformancePeriod period,
   ) async {
-    try {
-      final now = DateTime.now();
-      final periodDays = period.days;
-      final startDate = now.subtract(Duration(days: periodDays));
-      final previousStartDate = startDate.subtract(Duration(days: periodDays));
+    if (_isCacheValid(userId, period)) {
+      return; // 캐시 사용
+    }
 
-      // 현재 기간 데이터
-      final currentSnapshot = await _db
+    final now = DateTime.now();
+    final periodDays = period.days;
+    final startDate = now.subtract(Duration(days: periodDays));
+    final previousStartDate = startDate.subtract(Duration(days: periodDays));
+
+    // 두 개의 쿼리를 병렬로 실행
+    final results = await Future.wait([
+      _db
           .collection('users')
           .doc(userId)
           .collection('workout_sessions')
@@ -25,10 +49,9 @@ class PerformanceService {
             'startedAt',
             isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
           )
-          .get();
-
-      // 이전 기간 데이터 (비교용)
-      final previousSnapshot = await _db
+          .orderBy('startedAt', descending: true)
+          .get(),
+      _db
           .collection('users')
           .doc(userId)
           .collection('workout_sessions')
@@ -37,25 +60,54 @@ class PerformanceService {
             isGreaterThanOrEqualTo: Timestamp.fromDate(previousStartDate),
           )
           .where('startedAt', isLessThan: Timestamp.fromDate(startDate))
-          .get();
+          .get(),
+    ]);
 
-      int workoutCount = currentSnapshot.docs.length;
+    _cachedCurrentSessions = results[0].docs;
+    _cachedPreviousSessions = results[1].docs;
+    _cachedUserId = userId;
+    _cachedPeriod = period;
+    _cacheTime = DateTime.now();
+
+    print(
+      '✅ 성과 데이터 캐시 완료: 현재 ${_cachedCurrentSessions!.length}개, 이전 ${_cachedPreviousSessions!.length}개',
+    );
+  }
+
+  /// 캐시 초기화
+  void clearCache() {
+    _cachedCurrentSessions = null;
+    _cachedPreviousSessions = null;
+    _cachedUserId = null;
+    _cachedPeriod = null;
+    _cacheTime = null;
+  }
+
+  /// 기간별 성과 요약 조회 (캐시 사용)
+  Future<PerformanceSummary> getPerformanceSummary(
+    String userId,
+    PerformancePeriod period,
+  ) async {
+    try {
+      await _loadSessionsIfNeeded(userId, period);
+
+      int workoutCount = _cachedCurrentSessions!.length;
       int totalDuration = 0;
       double totalVolume = 0;
 
-      for (var doc in currentSnapshot.docs) {
-        final data = doc.data();
+      for (var doc in _cachedCurrentSessions!) {
+        final data = doc.data() as Map<String, dynamic>;
         totalDuration += ((data['duration'] as int?) ?? 0) ~/ 60;
         totalVolume += (data['totalVolume'] as num?)?.toDouble() ?? 0;
       }
 
       // 이전 기간 계산
-      int prevWorkoutCount = previousSnapshot.docs.length;
+      int prevWorkoutCount = _cachedPreviousSessions!.length;
       int prevDuration = 0;
       double prevVolume = 0;
 
-      for (var doc in previousSnapshot.docs) {
-        final data = doc.data();
+      for (var doc in _cachedPreviousSessions!) {
+        final data = doc.data() as Map<String, dynamic>;
         prevDuration += ((data['duration'] as int?) ?? 0) ~/ 60;
         prevVolume += (data['totalVolume'] as num?)?.toDouble() ?? 0;
       }
@@ -85,86 +137,81 @@ class PerformanceService {
     }
   }
 
-  /// 근력 운동 성과 조회
+  /// 근력 운동 성과 조회 (캐시 사용, 병렬 처리 최적화)
   Future<List<StrengthPerformance>> getStrengthPerformance(
     String userId,
     PerformancePeriod period,
   ) async {
     try {
-      final now = DateTime.now();
-      final periodDays = period.days;
-      final startDate = now.subtract(Duration(days: periodDays));
-      final previousStartDate = startDate.subtract(Duration(days: periodDays));
-
-      // 현재 기간
-      final currentSnapshot = await _db
-          .collection('users')
-          .doc(userId)
-          .collection('workout_sessions')
-          .where(
-            'startedAt',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
-          )
-          .get();
-
-      // 이전 기간
-      final previousSnapshot = await _db
-          .collection('users')
-          .doc(userId)
-          .collection('workout_sessions')
-          .where(
-            'startedAt',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(previousStartDate),
-          )
-          .where('startedAt', isLessThan: Timestamp.fromDate(startDate))
-          .get();
+      await _loadSessionsIfNeeded(userId, period);
 
       Map<String, Map<String, dynamic>> currentExercises = {};
       Map<String, Map<String, dynamic>> previousExercises = {};
 
-      // 현재 기간 운동 데이터 수집
-      for (var doc in currentSnapshot.docs) {
+      // 현재 기간 운동 데이터 수집 - 병렬 처리
+      final currentExerciseFutures = _cachedCurrentSessions!.map((doc) async {
         final exercisesSnapshot = await doc.reference
             .collection('exercises')
             .get();
-        for (var exerciseDoc in exercisesSnapshot.docs) {
-          final data = exerciseDoc.data();
-          final name = data['exerciseName'] as String? ?? '';
-          final exerciseId = data['exerciseId'] as int? ?? 0;
 
-          if (name.isEmpty) continue;
+        final exerciseDataList = await Future.wait(
+          exercisesSnapshot.docs.map((exerciseDoc) async {
+            final data = exerciseDoc.data();
+            final name = data['exerciseName'] as String? ?? '';
+            final exerciseId = data['exerciseId'] as int? ?? 0;
 
-          final setsSnapshot = await exerciseDoc.reference
-              .collection('sets')
-              .get();
-          double maxWeight = 0;
-          double totalVolume = 0;
-          int maxReps = 0;
+            if (name.isEmpty) return null;
 
-          for (var setDoc in setsSnapshot.docs) {
-            final setData = setDoc.data();
-            final weight = (setData['weight'] as num?)?.toDouble() ?? 0;
-            final reps = (setData['reps'] as int?) ?? 0;
+            final setsSnapshot = await exerciseDoc.reference
+                .collection('sets')
+                .get();
+            double maxWeight = 0;
+            double totalVolume = 0;
+            int maxReps = 0;
 
-            if (weight > maxWeight) maxWeight = weight;
-            if (reps > maxReps) maxReps = reps;
-            totalVolume += weight * reps;
-          }
+            for (var setDoc in setsSnapshot.docs) {
+              final setData = setDoc.data();
+              final weight = (setData['weight'] as num?)?.toDouble() ?? 0;
+              final reps = (setData['reps'] as int?) ?? 0;
 
-          if (!currentExercises.containsKey(name)) {
-            currentExercises[name] = {
+              if (weight > maxWeight) maxWeight = weight;
+              if (reps > maxReps) maxReps = reps;
+              totalVolume += weight * reps;
+            }
+
+            return {
+              'name': name,
               'id': exerciseId,
               'maxWeight': maxWeight,
               'maxVolume': totalVolume,
               'maxReps': maxReps,
             };
+          }),
+        );
+
+        return exerciseDataList.where((e) => e != null).toList();
+      });
+
+      final allCurrentExercises = await Future.wait(currentExerciseFutures);
+
+      // 데이터 병합
+      for (var exerciseList in allCurrentExercises) {
+        for (var exerciseData in exerciseList) {
+          if (exerciseData == null) continue;
+
+          final name = exerciseData['name'] as String;
+          final maxWeight = exerciseData['maxWeight'] as double;
+          final maxVolume = exerciseData['maxVolume'] as double;
+          final maxReps = exerciseData['maxReps'] as int;
+
+          if (!currentExercises.containsKey(name)) {
+            currentExercises[name] = exerciseData;
           } else {
             if (maxWeight > (currentExercises[name]!['maxWeight'] as double)) {
               currentExercises[name]!['maxWeight'] = maxWeight;
             }
-            if (totalVolume >
-                (currentExercises[name]!['maxVolume'] as double)) {
-              currentExercises[name]!['maxVolume'] = totalVolume;
+            if (maxVolume > (currentExercises[name]!['maxVolume'] as double)) {
+              currentExercises[name]!['maxVolume'] = maxVolume;
             }
             if (maxReps > (currentExercises[name]!['maxReps'] as int)) {
               currentExercises[name]!['maxReps'] = maxReps;
@@ -173,27 +220,46 @@ class PerformanceService {
         }
       }
 
-      // 이전 기간 운동 데이터 수집
-      for (var doc in previousSnapshot.docs) {
+      // 이전 기간 운동 데이터 수집 - 병렬 처리
+      final previousExerciseFutures = _cachedPreviousSessions!.map((doc) async {
         final exercisesSnapshot = await doc.reference
             .collection('exercises')
             .get();
-        for (var exerciseDoc in exercisesSnapshot.docs) {
-          final data = exerciseDoc.data();
-          final name = data['exerciseName'] as String? ?? '';
 
-          if (name.isEmpty) continue;
+        final exerciseDataList = await Future.wait(
+          exercisesSnapshot.docs.map((exerciseDoc) async {
+            final data = exerciseDoc.data();
+            final name = data['exerciseName'] as String? ?? '';
 
-          final setsSnapshot = await exerciseDoc.reference
-              .collection('sets')
-              .get();
-          double maxWeight = 0;
+            if (name.isEmpty) return null;
 
-          for (var setDoc in setsSnapshot.docs) {
-            final setData = setDoc.data();
-            final weight = (setData['weight'] as num?)?.toDouble() ?? 0;
-            if (weight > maxWeight) maxWeight = weight;
-          }
+            final setsSnapshot = await exerciseDoc.reference
+                .collection('sets')
+                .get();
+            double maxWeight = 0;
+
+            for (var setDoc in setsSnapshot.docs) {
+              final setData = setDoc.data();
+              final weight = (setData['weight'] as num?)?.toDouble() ?? 0;
+              if (weight > maxWeight) maxWeight = weight;
+            }
+
+            return {'name': name, 'maxWeight': maxWeight};
+          }),
+        );
+
+        return exerciseDataList.where((e) => e != null).toList();
+      });
+
+      final allPreviousExercises = await Future.wait(previousExerciseFutures);
+
+      // 데이터 병합
+      for (var exerciseList in allPreviousExercises) {
+        for (var exerciseData in exerciseList) {
+          if (exerciseData == null) continue;
+
+          final name = exerciseData['name'] as String;
+          final maxWeight = exerciseData['maxWeight'] as double;
 
           if (!previousExercises.containsKey(name)) {
             previousExercises[name] = {'maxWeight': maxWeight};
@@ -390,29 +456,60 @@ class PerformanceService {
       double currentTotalWeight = 0;
       int currentWeightCount = 0;
 
-      for (var doc in currentSnapshot.docs) {
+      // 병렬 처리로 최적화
+      final currentDataFutures = currentSnapshot.docs.map((doc) async {
         final data = doc.data();
         final date = (data['startedAt'] as Timestamp).toDate();
         final volume = (data['totalVolume'] as num?)?.toDouble() ?? 0;
 
-        currentTotalVolume += volume;
-
-        // 세트별 무게 평균 계산
+        // 세트별 무게 평균 계산 - 병렬 처리
         final exercisesSnapshot = await doc.reference
             .collection('exercises')
             .get();
-        for (var exerciseDoc in exercisesSnapshot.docs) {
+        final setsFutures = exercisesSnapshot.docs.map((exerciseDoc) async {
           final setsSnapshot = await exerciseDoc.reference
               .collection('sets')
               .get();
+          double totalWeight = 0;
+          int count = 0;
+
           for (var setDoc in setsSnapshot.docs) {
             final weight = (setDoc.data()['weight'] as num?)?.toDouble() ?? 0;
             if (weight > 0) {
-              currentTotalWeight += weight;
-              currentWeightCount++;
+              totalWeight += weight;
+              count++;
             }
           }
+
+          return {'totalWeight': totalWeight, 'count': count};
+        });
+
+        final setsResults = await Future.wait(setsFutures);
+        double sessionTotalWeight = 0;
+        int sessionWeightCount = 0;
+
+        for (var result in setsResults) {
+          sessionTotalWeight += result['totalWeight'] as double;
+          sessionWeightCount += result['count'] as int;
         }
+
+        return {
+          'date': date,
+          'volume': volume,
+          'totalWeight': sessionTotalWeight,
+          'weightCount': sessionWeightCount,
+        };
+      });
+
+      final currentResults = await Future.wait(currentDataFutures);
+
+      for (var result in currentResults) {
+        final date = result['date'] as DateTime;
+        final volume = result['volume'] as double;
+
+        currentTotalVolume += volume;
+        currentTotalWeight += result['totalWeight'] as double;
+        currentWeightCount += result['weightCount'] as int;
 
         weeklyData.add(
           VolumeIntensityData(
@@ -428,25 +525,54 @@ class PerformanceService {
       double prevTotalWeight = 0;
       int prevWeightCount = 0;
 
-      for (var doc in previousSnapshot.docs) {
+      // 이전 기간도 병렬 처리
+      final previousDataFutures = previousSnapshot.docs.map((doc) async {
         final data = doc.data();
-        prevTotalVolume += (data['totalVolume'] as num?)?.toDouble() ?? 0;
+        final volume = (data['totalVolume'] as num?)?.toDouble() ?? 0;
 
         final exercisesSnapshot = await doc.reference
             .collection('exercises')
             .get();
-        for (var exerciseDoc in exercisesSnapshot.docs) {
+        final setsFutures = exercisesSnapshot.docs.map((exerciseDoc) async {
           final setsSnapshot = await exerciseDoc.reference
               .collection('sets')
               .get();
+          double totalWeight = 0;
+          int count = 0;
+
           for (var setDoc in setsSnapshot.docs) {
             final weight = (setDoc.data()['weight'] as num?)?.toDouble() ?? 0;
             if (weight > 0) {
-              prevTotalWeight += weight;
-              prevWeightCount++;
+              totalWeight += weight;
+              count++;
             }
           }
+
+          return {'totalWeight': totalWeight, 'count': count};
+        });
+
+        final setsResults = await Future.wait(setsFutures);
+        double sessionTotalWeight = 0;
+        int sessionWeightCount = 0;
+
+        for (var result in setsResults) {
+          sessionTotalWeight += result['totalWeight'] as double;
+          sessionWeightCount += result['count'] as int;
         }
+
+        return {
+          'volume': volume,
+          'totalWeight': sessionTotalWeight,
+          'weightCount': sessionWeightCount,
+        };
+      });
+
+      final previousResults = await Future.wait(previousDataFutures);
+
+      for (var result in previousResults) {
+        prevTotalVolume += result['volume'] as double;
+        prevTotalWeight += result['totalWeight'] as double;
+        prevWeightCount += result['weightCount'] as int;
       }
 
       final currentAvgWeight = currentWeightCount > 0

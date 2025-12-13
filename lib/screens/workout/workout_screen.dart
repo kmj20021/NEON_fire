@@ -64,7 +64,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     setState(() => isLoading = true);
 
     try {
-      final exercises = await _exerciseService. getAllExercises();
+      final exercises = await _exerciseService.getAllExercises();
 
       setState(() {
         allExercises = exercises;
@@ -80,13 +80,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void _filterExercises() {
     setState(() {
       filteredExercises = allExercises.where((exercise) {
-        final matchesCategory = selectedCategory == '전체' ||
-            exercise.bodyPart == selectedCategory;
-        final matchesSearch = searchQuery. isEmpty ||
-            exercise.name. toLowerCase().contains(searchQuery.toLowerCase()) ||
-            (exercise.description ??  '')
-                .toLowerCase()
-                . contains(searchQuery.toLowerCase());
+        final matchesCategory =
+            selectedCategory == '전체' || exercise.bodyPart == selectedCategory;
+        final matchesSearch =
+            searchQuery.isEmpty ||
+            exercise.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+            (exercise.description ?? '').toLowerCase().contains(
+              searchQuery.toLowerCase(),
+            );
 
         return matchesCategory && matchesSearch;
       }).toList();
@@ -126,9 +127,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   Future<void> _saveRoutine() async {
     if (selectedWorkouts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('운동을 선택해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('운동을 선택해주세요.')));
       return;
     }
 
@@ -151,15 +152,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   Future<void> _confirmSaveRoutine() async {
     if (_routineNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('루틴 이름을 입력해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('루틴 이름을 입력해주세요.')));
       return;
     }
 
     // 순서대로 정렬된 운동 ID 리스트
     routineExerciseItems.sort((a, b) => a.order.compareTo(b.order));
-    final orderedWorkoutIds = routineExerciseItems.map((e) => e.exerciseId).toList();
+    final orderedWorkoutIds = routineExerciseItems
+        .map((e) => e.exerciseId)
+        .toList();
 
     final routine = SavedRoutine(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -172,17 +175,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
     if (routineId != null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('루틴이 저장되었습니다!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('루틴이 저장되었습니다!')));
         // 저장 후 운동 시작 확인 다이얼로그 표시
         _showStartWorkoutConfirmDialog(orderedWorkoutIds);
       }
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('루틴 저장에 실패했습니다.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('루틴 저장에 실패했습니다.')));
       }
     }
   }
@@ -190,7 +193,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   Color _getIntensityColor(String intensity) {
     switch (intensity) {
       case '저':
-        return Colors.green. shade100;
+        return Colors.green.shade100;
       case '중':
         return Colors.yellow.shade100;
       case '고':
@@ -203,7 +206,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   Color _getIntensityTextColor(String intensity) {
     switch (intensity) {
       case '저':
-        return Colors. green. shade800;
+        return Colors.green.shade800;
       case '중':
         return Colors.yellow.shade800;
       case '고':
@@ -226,121 +229,141 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFFAFAFA),
         body: Stack(
-        children: [
-          // Main Content
-          CustomScrollView(
-            slivers: [
-              // Header
-              SliverAppBar(
-                backgroundColor: Colors.white,
-                pinned: true,
-                elevation: 0,
-                toolbarHeight: 60,
-                leading: IconButton(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back, color: Colors.black54),
-                ),
-                title: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset('assets/images/logo.png', width: 32, height: 32),
-                    const SizedBox(width: 8),
-                    const Text(
-                      '프로해빗',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Colors. black87,
+          children: [
+            // Main Content
+            CustomScrollView(
+              slivers: [
+                // Header
+                SliverAppBar(
+                  backgroundColor: Colors.white,
+                  pinned: true,
+                  elevation: 0,
+                  toolbarHeight: 60,
+                  automaticallyImplyLeading: false,
+                  flexibleSpace: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
-                    ),
-                  ],
-                ),
-                centerTitle: true,
-                actions: [
-                  IconButton(
-                    onPressed: () => widget.navigateToPage('마이 페이지'),
-                    icon: const Icon(Icons.person, color: Colors.black54),
-                  ),
-                ],
-              ),
-
-              // Category & Search
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _CategorySearchDelegate(
-                  categories: categories,
-                  selectedCategory: selectedCategory,
-                  onCategoryChanged: _onCategoryChanged,
-                  searchController: _searchController,
-                  onSearchChanged: _onSearchChanged,
-                  primaryColor: primaryColor,
-                ),
-              ),
-
-              // Exercise List
-              SliverPadding(
-                padding: const EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 16, // 수정됨: 운동 검색하기 박스 아래 여백 축소 (16 -> 8)
-                  bottom: 180,
-                ),
-                sliver: isLoading
-                    ? const SliverFillRemaining(
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    : filteredExercises.isEmpty
-                        ? SliverFillRemaining(
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment. center,
-                                children: [
-                                  Text(
-                                    '검색 결과가 없습니다',
-                                    style: TextStyle(color: Colors.grey.shade600),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '다른 검색어나 카테고리를 시도해보세요',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade400,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                        : SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final exercise = filteredExercises[index];
-                                return _buildExerciseCard(exercise);
-                              },
-                              childCount: filteredExercises.length,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            onPressed: () => widget.navigateToPage('내 참여'),
+                            icon: const Icon(
+                              Icons.shopping_cart,
+                              color: Colors.black54,
                             ),
                           ),
-              ),
-            ],
-          ),
+                          Row(
+                            children: [
+                              Image.asset(
+                                'assets/images/logo.png',
+                                width: 32,
+                                height: 32,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                '프로해빗',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            onPressed: () => widget.navigateToPage('마이페이지'),
+                            icon: const Icon(
+                              Icons.person,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
 
-          // Fixed Bottom Actions
-          Positioned(
-            bottom: 70,
-            left: 0,
-            right: 0,
-            child: _buildBottomActions(),
-          ),
+                // Category & Search
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _CategorySearchDelegate(
+                    categories: categories,
+                    selectedCategory: selectedCategory,
+                    onCategoryChanged: _onCategoryChanged,
+                    searchController: _searchController,
+                    onSearchChanged: _onSearchChanged,
+                    primaryColor: primaryColor,
+                  ),
+                ),
 
-          // Bottom Navigation
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _buildBottomNavigation(),
-          ),
-        ],
-      ),
+                // Exercise List
+                SliverPadding(
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 16, // 수정됨: 운동 검색하기 박스 아래 여백 축소 (16 -> 8)
+                    bottom: 180,
+                  ),
+                  sliver: isLoading
+                      ? const SliverFillRemaining(
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : filteredExercises.isEmpty
+                      ? SliverFillRemaining(
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '검색 결과가 없습니다',
+                                  style: TextStyle(color: Colors.grey.shade600),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '다른 검색어나 카테고리를 시도해보세요',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : SliverList(
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            final exercise = filteredExercises[index];
+                            return _buildExerciseCard(exercise);
+                          }, childCount: filteredExercises.length),
+                        ),
+                ),
+              ],
+            ),
+
+            // Fixed Bottom Actions
+            Positioned(
+              bottom: 70,
+              left: 0,
+              right: 0,
+              child: _buildBottomActions(),
+            ),
+
+            // Bottom Navigation
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildBottomNavigation(),
+            ),
+          ],
+        ),
       ), // PopScope 닫기
     );
   }
@@ -402,18 +425,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 if (exercise.description != null)
                   Text(
                     exercise.description!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors. grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _buildBadge(exercise.bodyPart, Colors.grey.shade200,
-                        Colors.black87),
+                    _buildBadge(
+                      exercise.bodyPart,
+                      Colors.grey.shade200,
+                      Colors.black87,
+                    ),
                     const SizedBox(width: 8),
                     _buildBadge(
                       '강도: ${exercise.intensity}',
@@ -444,11 +467,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: isSelected
-                      ? const Icon(
-                          Icons.check,
-                          size: 16,
-                          color: Colors.white,
-                        )
+                      ? const Icon(Icons.check, size: 16, color: Colors.white)
                       : null,
                 ),
               ),
@@ -457,10 +476,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               // Info Button
               IconButton(
                 onPressed: () => _showExerciseDetail(exercise),
-                icon: Icon(
-                  Icons.info_outline,
-                  color: Colors.grey.shade400,
-                ),
+                icon: Icon(Icons.info_outline, color: Colors.grey.shade400),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -534,14 +550,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: primaryColor,
-                          shape: BoxShape. circle,
+                          shape: BoxShape.circle,
                         ),
                         child: Text(
                           '${selectedWorkouts.length}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
-                            fontWeight: FontWeight. bold,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -556,7 +572,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               child: SizedBox(
                 height: 48,
                 child: OutlinedButton(
-                  onPressed: selectedWorkouts.isEmpty ?  null : _saveRoutine,
+                  onPressed: selectedWorkouts.isEmpty ? null : _saveRoutine,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.black87,
                     side: BorderSide(color: Colors.grey.shade300),
@@ -583,10 +599,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   Widget _buildBottomNavigation() {
     final items = [
-      {'id': '운동', 'icon': Icons. play_arrow, 'label': '운동'},
-      {'id': '상태확인', 'icon': Icons. assessment, 'label': '상태확인'},
-      {'id': '성과확인', 'icon': Icons. bar_chart, 'label': '성과확인'},
-      {'id': '식단', 'icon': Icons. restaurant, 'label': '식단'},
+      {'id': '운동', 'icon': Icons.fitness_center, 'label': '운동'},
+      {'id': '상태확인', 'icon': Icons.assessment, 'label': '상태확인'},
+      {'id': '성과확인', 'icon': Icons.bar_chart, 'label': '성과확인'},
+      {'id': '공동구매', 'icon': Icons.shopping_bag, 'label': '공동 구매'},
     ];
 
     return Container(
@@ -611,7 +627,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 }
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isActive ? primaryColor : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
@@ -622,7 +641,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     Icon(
                       item['icon'] as IconData,
                       size: 20,
-                      color: isActive ? Colors.white : Colors. grey.shade600,
+                      color: isActive ? Colors.white : Colors.grey.shade600,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -674,10 +693,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  width: double. infinity,
+                  width: double.infinity,
                   height: 200,
                   color: Colors.grey.shade200,
-                  child: selectedExercise! .imagePath != null
+                  child: selectedExercise!.imagePath != null
                       ? Image.asset(
                           selectedExercise!.imagePath!,
                           fit: BoxFit.cover,
@@ -685,7 +704,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             return Icon(
                               Icons.fitness_center,
                               size: 64,
-                              color: Colors. grey.shade400,
+                              color: Colors.grey.shade400,
                             );
                           },
                         )
@@ -709,7 +728,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   const SizedBox(width: 8),
                   _buildBadge(
                     '강도: ${selectedExercise!.intensity}',
-                    _getIntensityColor(selectedExercise! .intensity),
+                    _getIntensityColor(selectedExercise!.intensity),
                     _getIntensityTextColor(selectedExercise!.intensity),
                   ),
                 ],
@@ -734,21 +753,24 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
-                      final url = Uri.parse(selectedExercise! .youtubeUrl!);
+                      final url = Uri.parse(selectedExercise!.youtubeUrl!);
                       if (await canLaunchUrl(url)) {
-                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                        await launchUrl(
+                          url,
+                          mode: LaunchMode.externalApplication,
+                        );
                       }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
-                      foregroundColor: Colors. white,
+                      foregroundColor: Colors.white,
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text('YouTube에서 보기'),
                         SizedBox(width: 8),
-                        Icon(Icons. arrow_forward, size: 16),
+                        Icon(Icons.arrow_forward, size: 16),
                       ],
                     ),
                   ),
@@ -763,12 +785,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void _showSaveRoutineDialog() {
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (statefulContext, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.9,  // 화면 너비의 90%
-            height: MediaQuery.of(context).size.height * 0.8, // 화면 높이의 80%
+            width: MediaQuery.of(dialogContext).size.width * 0.9, // 화면 너비의 90%
+            height: MediaQuery.of(dialogContext).size.height * 0.8, // 화면 높이의 80%
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -787,7 +811,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       ),
                       IconButton(
                         onPressed: () {
-                          Navigator.of(context).pop();
+                          Navigator.of(dialogContext).pop();
                           _routineNameController.clear();
                         },
                         icon: const Icon(Icons.close),
@@ -811,7 +835,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   const SizedBox(height: 8),
                   Flexible(
                     child: Container(
-                      constraints: const BoxConstraints(maxHeight: 700), // 운동 리스트 높이 증가
+                      constraints: const BoxConstraints(
+                        maxHeight: 700,
+                      ), // 운동 리스트 높이 증가
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey.shade300),
                         borderRadius: BorderRadius.circular(8),
@@ -824,10 +850,16 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             if (newIndex > oldIndex) {
                               newIndex -= 1;
                             }
-                            final item = routineExerciseItems.removeAt(oldIndex);
+                            final item = routineExerciseItems.removeAt(
+                              oldIndex,
+                            );
                             routineExerciseItems.insert(newIndex, item);
                             // 순서 업데이트
-                            for (int i = 0; i < routineExerciseItems.length; i++) {
+                            for (
+                              int i = 0;
+                              i < routineExerciseItems.length;
+                              i++
+                            ) {
                               routineExerciseItems[i].order = i;
                             }
                           });
@@ -847,8 +879,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.drag_handle,
-                                    color: Colors.grey.shade400, size: 20),
+                                Icon(
+                                  Icons.drag_handle,
+                                  color: Colors.grey.shade400,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 8),
                                 Container(
                                   width: 24,
@@ -871,7 +906,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         item.exerciseName,
@@ -926,7 +962,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {
-                            Navigator.of(context).pop();
+                            Navigator.of(dialogContext).pop();
                             _routineNameController.clear();
                           },
                           child: const Text('취소'),
@@ -936,7 +972,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
-                            Navigator.of(context).pop();
+                            Navigator.of(dialogContext).pop();
                             _confirmSaveRoutine();
                           },
                           style: ElevatedButton.styleFrom(
@@ -976,18 +1012,12 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           children: [
             const Text(
               '이 루틴으로 운동을 시작할까요?',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
             Text(
               '지금 바로 운동을 시작하거나, 나중에 시작할 수 있습니다.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -1040,31 +1070,31 @@ class _CategorySearchDelegate extends SliverPersistentHeaderDelegate {
     required this.categories,
     required this.selectedCategory,
     required this.onCategoryChanged,
-    required this. searchController,
-    required this. onSearchChanged,
+    required this.searchController,
+    required this.onSearchChanged,
     required this.primaryColor,
   });
 
   @override
   Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.only(
-        left: 16,    // 여백조절: 운동부위 박스 왼쪽 여백
-        right: 16,   // 여백조절: 운동부위 박스 오른쪽 여백
-        top: 8,      // 여백조절: 운동부위 박스 상단 여백
-        bottom: 0,   // 여백조절: 운동부위 박스 하단 여백
+        left: 16, // 여백조절: 운동부위 박스 왼쪽 여백
+        right: 16, // 여백조절: 운동부위 박스 오른쪽 여백
+        top: 8, // 여백조절: 운동부위 박스 상단 여백
+        bottom: 0, // 여백조절: 운동부위 박스 하단 여백
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '운동 부위',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 12), // 여백조절: '운동 부위' 텍스트와 카테고리 칩 사이 간격
           SizedBox(
@@ -1077,7 +1107,9 @@ class _CategorySearchDelegate extends SliverPersistentHeaderDelegate {
                 final isSelected = selectedCategory == category;
 
                 return Padding(
-                  padding: const EdgeInsets.only(right: 8), // 여백조절: 카테고리 칩들 사이 간격
+                  padding: const EdgeInsets.only(
+                    right: 8,
+                  ), // 여백조절: 카테고리 칩들 사이 간격
                   child: ChoiceChip(
                     label: Text(category),
                     selected: isSelected,
@@ -1104,14 +1136,14 @@ class _CategorySearchDelegate extends SliverPersistentHeaderDelegate {
             onChanged: onSearchChanged,
             decoration: InputDecoration(
               hintText: '운동 검색하기',
-              prefixIcon: const Icon(Icons. search),
+              prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16, // 여백조절: 검색박스 내부 좌우 여백
-                vertical: 3,    // 여백조절: 검색박스 내부 상하 여백 축소 (12 -> 8)
+                vertical: 3, // 여백조절: 검색박스 내부 상하 여백 축소 (12 -> 8)
               ),
             ),
           ),

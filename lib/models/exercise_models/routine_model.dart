@@ -32,10 +32,11 @@ class RoutineExerciseItem {
     'order': order,
   };
 
-  factory RoutineExerciseItem.fromJson(Map<String, dynamic> json) => RoutineExerciseItem(
-    exerciseId: json['exerciseId'],
-    exerciseName: json['exerciseName'],
-    bodyPart: json['bodyPart'],
-    order: json['order'],
-  );
+  factory RoutineExerciseItem.fromJson(Map<String, dynamic> json) =>
+      RoutineExerciseItem(
+        exerciseId: json['exerciseId'],
+        exerciseName: json['exerciseName'],
+        bodyPart: json['bodyPart'],
+        order: json['order'],
+      );
 }

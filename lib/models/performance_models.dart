@@ -1,39 +1,18 @@
 // lib/models/performance_models.dart
 import 'package:flutter/material.dart';
 
-/// 기간 선택 enum
+/// 기간 선택 enum (최근 30일 고정)
 enum PerformancePeriod {
-  week7, // 최근 7일
   days30, // 최근 30일
-  months3, // 최근 3개월
-  all, // 전체
 }
 
 extension PerformancePeriodExtension on PerformancePeriod {
   String get label {
-    switch (this) {
-      case PerformancePeriod.week7:
-        return '최근 7일';
-      case PerformancePeriod.days30:
-        return '최근 30일';
-      case PerformancePeriod.months3:
-        return '최근 3개월';
-      case PerformancePeriod.all:
-        return '전체';
-    }
+    return '최근 30일';
   }
 
   int get days {
-    switch (this) {
-      case PerformancePeriod.week7:
-        return 7;
-      case PerformancePeriod.days30:
-        return 30;
-      case PerformancePeriod.months3:
-        return 90;
-      case PerformancePeriod.all:
-        return 365 * 10; // 10년
-    }
+    return 30;
   }
 }
 
@@ -224,6 +203,28 @@ class VolumeIntensitySummary {
     required this.currentAvgWeight,
     required this.previousAvgWeight,
   });
+
+  /// 평균 볼륨 포맷 (현재 기간의 총 볼륨 평균)
+  String get formattedAverageVolume {
+    if (weeklyData.isEmpty) return '0kg';
+    final totalVolume = weeklyData.fold<double>(
+      0, 
+      (sum, data) => sum + data.totalVolume
+    );
+    final avgVolume = totalVolume / weeklyData.length;
+    return '${(avgVolume / 1000).toStringAsFixed(1)}t';
+  }
+
+  /// 평균 강도 포맷 (현재 기간의 평균 무게)
+  String get formattedAverageIntensity {
+    return '${currentAvgWeight.toStringAsFixed(1)}kg';
+  }
+
+  /// 볼륨 변화율
+  double get volumeChangePercent => totalVolumeChangePercent;
+
+  /// 강도 변화율
+  double get intensityChangePercent => avgWeightChangePercent;
 }
 
 /// 부위별 성장 지표 모델
@@ -330,6 +331,9 @@ class ConsistencyScore {
     if (score >= 40) return 'C';
     return 'D';
   }
+
+  // grade getter 추가 (위젯에서 사용하기 위해)
+  String get grade => scoreGrade;
 }
 
 /// 과거 나 vs 현재 나 비교 모델
@@ -366,4 +370,7 @@ class PerformanceComment {
     required this.highlights,
     required this.suggestion,
   });
+
+  // message getter 추가 (위젯에서 사용하기 위해)
+  String get message => content;
 }
