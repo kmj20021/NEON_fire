@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:neon_fire/models/performance_models.dart';
-import 'package:neon_fire/controllers/performance_controller.dart';
+import 'package:neon_fire/services/performance_controller.dart';
 import 'package:neon_fire/widgets/performance_widgets.dart';
 
 /// Performance Screen - MVC 패턴의 View (Main Screen)

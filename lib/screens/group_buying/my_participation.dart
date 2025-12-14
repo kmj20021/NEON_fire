@@ -35,6 +35,64 @@ class _MyParticipationScreenState extends State<MyParticipationScreen> {
     _loadParticipations();
   }
 
+  /// 참여 취소 처리
+  Future<void> _cancelParticipation(
+    GroupBuyParticipation participation,
+    GroupBuyProduct product,
+  ) async {
+    // 참여 취소 확인 다이얼로그
+    final shouldCancel = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('참여 취소'),
+        content: Text('"${product.name}" 참여를 취소하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('아니오'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('예'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldCancel != true) return;
+
+    // context를 미리 저장
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    // 참여 취소 처리
+    final success = await _service.cancelParticipation(
+      userId: widget.userId,
+      productId: product.id,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('${product.name} 참여 취소 완료'),
+          backgroundColor: Colors.grey.shade700,
+        ),
+      );
+      // 데이터 재로드
+      _loadParticipations();
+    } else {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('참여 취소에 실패했습니다.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _loadParticipations() async {
     setState(() => isLoading = true);
 
@@ -324,13 +382,6 @@ class _MyParticipationScreenState extends State<MyParticipationScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '${daysAgo}일 전 참여',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                    Text(
                       '${product.currentParticipants}/${product.maxParticipants}명',
                       style: TextStyle(
                         fontSize: 12,
@@ -343,40 +394,43 @@ class _MyParticipationScreenState extends State<MyParticipationScreen> {
               ],
             ),
             
-            // 상태 표시
+            // 상태 표시 (참여 취소 가능)
             const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: Colors.green.shade200,
-                  width: 1,
+            GestureDetector(
+              onTap: () => _cancelParticipation(participation, product),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.check_circle,
-                    size: 16,
-                    color: Colors.green.shade700,
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: Colors.green.shade200,
+                    width: 1,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '참여중',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      size: 16,
                       color: Colors.green.shade700,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      '참여중 (터치하여 취소)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

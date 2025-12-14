@@ -1674,8 +1674,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // 주요 통계
                 _buildSummaryCard(
-                  '총 운동 시간',
-                  '${summary.totalDuration ~/ 60}시간 ${summary.totalDuration % 60}분',
+                  '평균 운동 시간',
+                  '${summary.avgDuration.toInt() ~/ 60}시간 ${summary.avgDuration.toInt() % 60}분',
                   Icons.timer,
                   Colors.blue,
                 ),
@@ -1731,8 +1731,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 // 인사이트
                 _buildInsightSection('📊 인사이트', [
                   if (summary.workoutDays > 0) ...[
-                    '평균 운동 시간: ${summary.avgDuration.toStringAsFixed(0)}분',
-                    '가장 열심히 한 요일: ${summary.mostActiveDay} (${summary.maxDailyDuration}분)',
+                    '평균 운동 시간: ${summary.avgDuration.toInt() ~/ 60}시간 ${summary.avgDuration.toInt() % 60}분',
+                    '가장 열심히 한 요일: ${summary.mostActiveDay} (${summary.maxDailyDuration ~/ 60}시간 ${summary.maxDailyDuration % 60}분)',
                     if (summary.workoutDays >= 5)
                       '🔥 이번 주 ${summary.workoutDays}일 운동! 정말 대단해요!'
                     else if (summary.workoutDays >= 3)
@@ -1756,6 +1756,163 @@ class _HomeScreenState extends State<HomeScreen> {
                         )
                         .toList(),
                   ),
+                ],
+
+                // 일별 운동 상세 기록
+                if (summary.dailyDetails.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Text(
+                    '📅 일별 운동 기록',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...summary.dailyDetails.map((daily) {
+                    final hasWorkout = daily.duration > 0;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: hasWorkout
+                            ? primaryColor.withOpacity(0.05)
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: hasWorkout
+                              ? primaryColor.withOpacity(0.3)
+                              : Colors.grey.shade200,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: hasWorkout
+                                          ? primaryColor
+                                          : Colors.grey.shade400,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      daily.dayName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${daily.date.month}/${daily.date.day}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (hasWorkout)
+                                Text(
+                                  '${daily.duration ~/ 60}분',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (hasWorkout) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.fitness_center,
+                                  size: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${daily.sets}세트',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Icon(
+                                  Icons.trending_up,
+                                  size: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${daily.volume.toStringAsFixed(0)}kg',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (daily.exercises.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: daily.exercises.take(5).map((ex) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      ex,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ] else
+                            const Padding(
+                              padding: EdgeInsets.only(top: 4),
+                              child: Text(
+                                '휴식',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  }),
                 ],
 
                 const SizedBox(height: 20),

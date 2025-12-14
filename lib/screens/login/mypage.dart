@@ -1,5 +1,6 @@
 // lib/screens/mypage.dart
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:neon_fire/services/auth_service.dart';
 import 'package:neon_fire/models/app_user.dart';
 import 'package:neon_fire/screens/login/profile_management_screen.dart';
@@ -90,6 +91,17 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
   }
 
+  /// 이미지 프로바이더 결정 (로컬 파일 또는 네트워크)
+  ImageProvider _getImageProvider(String imagePath) {
+    // 로컬 파일 경로인 경우
+    if (imagePath.startsWith('/') || imagePath.contains('user_profiles')) {
+      final file = File(imagePath);
+      return FileImage(file);
+    }
+    // URL인 경우 (기존 Firebase Storage URL)
+    return NetworkImage(imagePath);
+  }
+
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFFFF5757);
@@ -142,16 +154,18 @@ class _MyPageScreenState extends State<MyPageScreen> {
                             decoration: BoxDecoration(
                               color: Colors.grey.shade200,
                               shape: BoxShape.circle,
-                              image: _user?.profileImageUrl != null
+                              image: _user?.profileImageUrl != null &&
+                                      _user!.profileImageUrl!.isNotEmpty
                                   ? DecorationImage(
-                                      image: NetworkImage(
+                                      image: _getImageProvider(
                                         _user!.profileImageUrl!,
                                       ),
                                       fit: BoxFit.cover,
                                     )
                                   : null,
                             ),
-                            child: _user?.profileImageUrl == null
+                            child: _user?.profileImageUrl == null ||
+                                    _user!.profileImageUrl!.isEmpty
                                 ? Icon(
                                     Icons.person,
                                     size: 40,
