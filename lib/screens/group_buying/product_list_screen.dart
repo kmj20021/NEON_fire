@@ -103,96 +103,102 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return GestureDetector(
+      onTap: () {
+        // 화면의 다른 부분을 터치하면 키보드 포커스 해제
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-              onPressed: () => widget.navigateToPage('내 참여'),
-              icon: const Icon(
-                Icons.shopping_cart,
-                color: Colors.black54,
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset('assets/images/logo.png', width: 32, height: 32),
-                const SizedBox(width: 8),
-                const Text(
-                  '프로해빗',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                onPressed: () => widget.navigateToPage('내 참여'),
+                icon: const Icon(
+                  Icons.shopping_cart,
+                  color: Colors.black54,
                 ),
-              ],
-            ),
-            IconButton(
-              onPressed: () => widget.navigateToPage('마이페이지'),
-              icon: const Icon(
-                Icons.person,
-                color: Colors.black54,
               ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('assets/images/logo.png', width: 32, height: 32),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '프로해빗',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                onPressed: () => widget.navigateToPage('마이페이지'),
+                icon: const Icon(
+                  Icons.person,
+                  color: Colors.black54,
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: Column(
+          children: [
+            // 카테고리 탭
+            _buildCategoryTabs(),
+
+            // 검색바
+            _buildSearchBar(),
+
+            const SizedBox(height: 16),
+
+            // 상품 리스트
+            Expanded(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredProducts.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.shopping_bag_outlined,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            '등록된 공동구매가 없습니다',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadProducts,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: filteredProducts.length,
+                        itemBuilder: (context, index) {
+                          return _buildProductCard(filteredProducts[index]);
+                        },
+                      ),
+                    ),
             ),
           ],
         ),
+        bottomNavigationBar: _buildBottomNavigation(),
       ),
-      body: Column(
-        children: [
-          // 카테고리 탭
-          _buildCategoryTabs(),
-
-          // 검색바
-          _buildSearchBar(),
-
-          const SizedBox(height: 16),
-
-          // 상품 리스트
-          Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filteredProducts.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.shopping_bag_outlined,
-                          size: 64,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          '등록된 공동구매가 없습니다',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _loadProducts,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: filteredProducts.length,
-                      itemBuilder: (context, index) {
-                        return _buildProductCard(filteredProducts[index]);
-                      },
-                    ),
-                  ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 

@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import 'package:neon_fire/services/auth_service.dart';
 import 'package:neon_fire/models/app_user.dart';
 
@@ -99,23 +101,51 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
 
       print('이미지 파일 크기: ${await imageFile.length()} bytes');
 
-      final imageUrl = await _authService.uploadProfileImage(
-        _user.uid,
-        imageFile,
-      );
+      // 앱 문서 디렉토리에 저장
+      final appDir = await getApplicationDocumentsDirectory();
+      final userImagesDir = Directory('${appDir.path}/user_profiles');
+      
+      // 디렉토리가 없으면 생성
+      if (!await userImagesDir.exists()) {
+        await userImagesDir.create(recursive: true);
+        print('사용자 프로필 디렉토리 생성: ${userImagesDir.path}');
+      }
 
-      print('업로드된 이미지 URL: $imageUrl');
+      // 파일명 생성 (userId + 타임스탬프 + 원본 확장자)
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final extension = path.extension(pickedFile.path);
+      final fileName = '${_user.uid}_$timestamp$extension';
+      final savedImagePath = '${userImagesDir.path}/$fileName';
 
-      // Firestore 업데이트
+      // 이미지 파일 복사
+      final savedFile = await imageFile.copy(savedImagePath);
+      print('이미지 저장 완료: $savedImagePath');
+
+      // 기존 프로필 이미지가 있으면 삭제
+      if (_user.profileImageUrl != null && _user.profileImageUrl!.isNotEmpty) {
+        try {
+          final oldFile = File(_user.profileImageUrl!);
+          if (await oldFile.exists()) {
+            await oldFile.delete();
+            print('기존 프로필 이미지 삭제: ${_user.profileImageUrl}');
+          }
+        } catch (e) {
+          print('기존 이미지 삭제 실패 (무시): $e');
+        }
+      }
+
+      // Firestore에 로컬 파일 경로 저장
       await _authService.updateUserProfile(
         userId: _user.uid,
-        profileImageUrl: imageUrl,
+        profileImageUrl: savedImagePath,
       );
+
+      print('Firestore 업데이트 완료: $savedImagePath');
 
       // 로컬 상태 업데이트
       if (!mounted) return;
       setState(() {
-        _user = _user.copyWith(profileImageUrl: imageUrl);
+        _user = _user.copyWith(profileImageUrl: savedImagePath);
         _isUpdating = false;
       });
 
@@ -128,7 +158,7 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
         );
       }
     } catch (e, stackTrace) {
-      print('프로필 사진 업로드 실패: $e');
+      print('프로필 사진 저장 실패: $e');
       print('Stack trace: $stackTrace');
 
       if (!mounted) return;
@@ -137,7 +167,7 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('프로필 사진 업로드 실패: ${e.toString()}'),
+            content: Text('프로필 사진 저장 실패: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),
@@ -314,6 +344,17 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
     }
   }
 
+  /// 이미지 프로바이더 결정 (로컬 파일 또는 네트워크)
+  ImageProvider _getImageProvider(String imagePath) {
+    // 로컬 파일 경로인 경우
+    if (imagePath.startsWith('/') || imagePath.contains('user_profiles')) {
+      final file = File(imagePath);
+      return FileImage(file);
+    }
+    // URL인 경우 (기존 Firebase Storage URL)
+    return NetworkImage(imagePath);
+  }
+
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFFFF5757);
@@ -410,14 +451,16 @@ class _ProfileManagementScreenState extends State<ProfileManagementScreen> {
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
                     shape: BoxShape.circle,
-                    image: _user.profileImageUrl != null
+                    image: _user.profileImageUrl != null &&
+                            _user.profileImageUrl!.isNotEmpty
                         ? DecorationImage(
-                            image: NetworkImage(_user.profileImageUrl!),
+                            image: _getImageProvider(_user.profileImageUrl!),
                             fit: BoxFit.cover,
                           )
                         : null,
                   ),
-                  child: _user.profileImageUrl == null
+                  child: _user.profileImageUrl == null ||
+                          _user.profileImageUrl!.isEmpty
                       ? Icon(
                           Icons.person,
                           size: 50,

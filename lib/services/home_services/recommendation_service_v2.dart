@@ -2,13 +2,53 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:neon_fire/models/home_models/recommended_exercise_model.dart';
 
 class RecommendationServiceV2 {
+  // 싱글톤 패턴
+  static final RecommendationServiceV2 _instance = RecommendationServiceV2._internal();
+  factory RecommendationServiceV2() => _instance;
+  RecommendationServiceV2._internal();
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // 캐싱
+  RecommendedExercise? _cachedRecommendation;
+  DateTime? _lastWorkoutCheckTime;
+  DateTime? _cacheTime;
+
+  /// 캐시 유효성 검사 (24시간)
+  bool _isCacheValid() {
+    if (_cachedRecommendation == null || _cacheTime == null) {
+      return false;
+    }
+    final now = DateTime.now();
+    return now.difference(_cacheTime!) < const Duration(hours: 24);
+  }
 
   /// 사용자 운동 기록 기반 추천
   Future<RecommendedExercise?> getRecommendedExerciseAdvanced(
     String userId,
   ) async {
     try {
+      print('📝 캐시 상태: ${_cachedRecommendation != null ? "있음" : "없음"}, 시간: $_cacheTime');
+      
+      // 캐시가 유효하고, 새로운 운동이 없으면 캐시 반환
+      if (_isCacheValid()) {
+        print('⏱️ 캐시 유효성 검사 통과');
+        final hasNewWorkout = await _hasNewWorkoutSince(userId, _lastWorkoutCheckTime!);
+        print('🔍 새 운동 확인: $hasNewWorkout');
+        
+        if (!hasNewWorkout) {
+          print('✅ 캐시된 추천 운동 사용 (즉시 반환)');
+          return _cachedRecommendation;
+        } else {
+          print('🆕 새로운 운동 발견, 재계산 필요');
+        }
+      } else {
+        print('❌ 캐시 유효하지 않음 (첫 실행 또는 만료)');
+      }
+
+      print('🔄 새로운 추천 운동 계산 중...');
+      final startTime = DateTime.now();
+
       // 1. 최근 30일 운동 세션의 모든 운동 가져오기
       final muscleWorkoutMap = await _getMuscleWorkoutHistory(userId);
 
@@ -18,7 +58,14 @@ class RecommendationServiceV2 {
       );
 
       if (neglectedMuscle == null) {
-        return await _getRandomExercise();
+        final exercise = await _getRandomExercise();
+        _cachedRecommendation = exercise;
+        _cacheTime = DateTime.now();
+        _lastWorkoutCheckTime = DateTime.now();
+        
+        final duration = DateTime.now().difference(startTime);
+        print('⚡ 랜덤 추천 완료 (${duration.inMilliseconds}ms)');
+        return exercise;
       }
 
       // 3. 해당 근육의 운동 중 사용자가 안 해본 운동 우선 추천
@@ -27,11 +74,35 @@ class RecommendationServiceV2 {
         neglectedMuscle['muscleId'] as int,
       );
 
+      // 캐시 저장
+      _cachedRecommendation = exercise;
+      _cacheTime = DateTime.now();
+      _lastWorkoutCheckTime = DateTime.now();
+
+      final duration = DateTime.now().difference(startTime);
+      print('⚡ 추천 계산 완료 (${duration.inMilliseconds}ms), 캐시 저장됨');
+
       return exercise;
     } catch (e) {
-      print('추천 운동 조회 실패: $e');
-      return null;
+      print('❌ 추천 운동 조회 실패: $e');
+      return _cachedRecommendation; // 오류 시 캐시 반환
     }
+  }
+
+  /// 마지막 확인 이후 새로운 운동이 있는지 확인
+  Future<bool> _hasNewWorkoutSince(String userId, DateTime since) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(userId)
+        .collection('workout_sessions')
+        .where(
+          'startedAt',
+          isGreaterThan: Timestamp.fromDate(since),
+        )
+        .limit(1)
+        .get();
+
+    return snapshot.docs.isNotEmpty;
   }
 
   /// 근육별 운동 기록 맵 생성

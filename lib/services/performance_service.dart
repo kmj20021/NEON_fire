@@ -3,6 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:neon_fire/models/performance_models.dart';
 
 class PerformanceService {
+  // 싱글톤 패턴
+  static final PerformanceService _instance = PerformanceService._internal();
+  factory PerformanceService() => _instance;
+  PerformanceService._internal();
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // 캐시된 데이터
@@ -11,8 +16,9 @@ class PerformanceService {
   String? _cachedUserId;
   PerformancePeriod? _cachedPeriod;
   DateTime? _cacheTime;
+  DateTime? _lastWorkoutCheckTime;
 
-  /// 캐시 유효성 검사 (1분)
+  /// 캐시 유효성 검사 (24시간 + 운동 변경 감지)
   bool _isCacheValid(String userId, PerformancePeriod period) {
     if (_cachedCurrentSessions == null ||
         _cachedUserId != userId ||
@@ -22,7 +28,23 @@ class PerformanceService {
     }
 
     final now = DateTime.now();
-    return now.difference(_cacheTime!) < const Duration(minutes: 1);
+    return now.difference(_cacheTime!) < const Duration(hours: 24);
+  }
+
+  /// 마지막 확인 이후 새로운 운동이 있는지 확인
+  Future<bool> _hasNewWorkoutSince(String userId, DateTime since) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(userId)
+        .collection('workout_sessions')
+        .where(
+          'startedAt',
+          isGreaterThan: Timestamp.fromDate(since),
+        )
+        .limit(1)
+        .get();
+
+    return snapshot.docs.isNotEmpty;
   }
 
   /// 세션 데이터 미리 로드 (한 번의 쿼리로)
@@ -30,8 +52,21 @@ class PerformanceService {
     String userId,
     PerformancePeriod period,
   ) async {
+    print('📊 [성과] 캐시 체크: ${_cachedCurrentSessions != null ? "있음" : "없음"}');
+    
     if (_isCacheValid(userId, period)) {
-      return; // 캐시 사용
+      // 새로운 운동이 있는지 확인
+      if (_lastWorkoutCheckTime != null) {
+        final hasNewWorkout = await _hasNewWorkoutSince(userId, _lastWorkoutCheckTime!);
+        if (!hasNewWorkout) {
+          print('✅ [성과] 캐시 사용 (즉시 반환)');
+          return; // 캐시 사용
+        } else {
+          print('🆕 [성과] 새 운동 발견, 재계산');
+        }
+      }
+    } else {
+      print('❌ [성과] 캐시 무효 또는 첫 실행');
     }
 
     final now = DateTime.now();
@@ -68,9 +103,10 @@ class PerformanceService {
     _cachedUserId = userId;
     _cachedPeriod = period;
     _cacheTime = DateTime.now();
+    _lastWorkoutCheckTime = DateTime.now();
 
     print(
-      '✅ 성과 데이터 캐시 완료: 현재 ${_cachedCurrentSessions!.length}개, 이전 ${_cachedPreviousSessions!.length}개',
+      '✅ [성과] 데이터 캐시 완료: 현재 ${_cachedCurrentSessions!.length}개, 이전 ${_cachedPreviousSessions!.length}개',
     );
   }
 

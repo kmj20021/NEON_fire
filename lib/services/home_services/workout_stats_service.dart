@@ -2,7 +2,35 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:neon_fire/models/home_models/workout_stats_model.dart';
 
 class WorkoutStatsService {
+  // 싱글톤 패턴
+  static final WorkoutStatsService _instance = WorkoutStatsService._internal();
+  factory WorkoutStatsService() => _instance;
+  WorkoutStatsService._internal();
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // 캐싱
+  List<WeeklyWorkoutData>? _cachedWeeklyData;
+  WeeklyWorkoutSummary? _cachedWeeklySummary;
+  DateTime? _cacheTime;
+  DateTime? _lastWorkoutCheckTime;
+  String? _cachedUserId;
+
+  /// 마지막 확인 이후 새로운 운동이 있는지 확인
+  Future<bool> _hasNewWorkoutSince(String userId, DateTime since) async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(userId)
+        .collection('workout_sessions')
+        .where(
+          'startedAt',
+          isGreaterThan: Timestamp.fromDate(since),
+        )
+        .limit(1)
+        .get();
+
+    return snapshot.docs.isNotEmpty;
+  }
 
   /// 이번 달 운동 캘린더 데이터 가져오기
   Future<Map<DateTime, int>> getMonthlyWorkoutData(String userId) async {
@@ -48,6 +76,28 @@ class WorkoutStatsService {
   /// 이번 주 운동 데이터 가져오기 (차트용)
   Future<List<WeeklyWorkoutData>> getWeeklyWorkoutData(String userId) async {
     try {
+      print('📊 [주간차트] 캐시 체크: ${_cachedWeeklyData != null ? "있음" : "없음"}');
+      
+      // 캐시 확인
+      if (_cachedWeeklyData != null && 
+          _cachedUserId == userId && 
+          _cacheTime != null &&
+          DateTime.now().difference(_cacheTime!) < const Duration(hours: 24)) {
+        
+        // 새로운 운동 확인
+        if (_lastWorkoutCheckTime != null) {
+          final hasNewWorkout = await _hasNewWorkoutSince(userId, _lastWorkoutCheckTime!);
+          if (!hasNewWorkout) {
+            print('✅ [주간차트] 캐시 사용 (즉시 반환)');
+            return _cachedWeeklyData!;
+          } else {
+            print('🆕 [주간차트] 새 운동 발견, 재계산');
+          }
+        }
+      } else {
+        print('❌ [주간차트] 캐시 무효 또는 첫 실행');
+      }
+
       final now = DateTime.now();
       // 이번 주 월요일 계산 (weekday: 월=1, 일=7)
       final weekStart = now.subtract(Duration(days: now.weekday - 1));
@@ -61,7 +111,6 @@ class WorkoutStatsService {
       );
 
       print('📅 주간 데이터 조회 범위: ${startOfWeek} ~ ${endOfWeek}');
-      print('🔍 userId: $userId');
 
       final snapshot = await _db
           .collection('users')
@@ -114,7 +163,13 @@ class WorkoutStatsService {
         ),
       );
 
-      print('✅ 주간 데이터 결과:');
+      // 캐시 저장
+      _cachedWeeklyData = result;
+      _cachedUserId = userId;
+      _cacheTime = DateTime.now();
+      _lastWorkoutCheckTime = DateTime.now();
+
+      print('✅ [주간차트] 데이터 결과 및 캐시 저장:');
       for (var i = 0; i < result.length; i++) {
         print('   ${result[i].day}: ${result[i].minutes}분');
       }
@@ -122,6 +177,10 @@ class WorkoutStatsService {
       return result;
     } catch (e) {
       print('❌ 주간 운동 데이터 조회 실패: $e');
+      // 캐시가 있으면 반환
+      if (_cachedWeeklyData != null) {
+        return _cachedWeeklyData!;
+      }
       // 기본값 반환
       const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
       return List.generate(
@@ -222,6 +281,28 @@ class WorkoutStatsService {
   /// 주간 운동 상세 요약 정보 가져오기
   Future<WeeklyWorkoutSummary> getWeeklyWorkoutSummary(String userId) async {
     try {
+      print('📝 [주간요약] 캐시 체크: ${_cachedWeeklySummary != null ? "있음" : "없음"}');
+      
+      // 캐시 확인
+      if (_cachedWeeklySummary != null && 
+          _cachedUserId == userId && 
+          _cacheTime != null &&
+          DateTime.now().difference(_cacheTime!) < const Duration(hours: 24)) {
+        
+        // 새로운 운동 확인
+        if (_lastWorkoutCheckTime != null) {
+          final hasNewWorkout = await _hasNewWorkoutSince(userId, _lastWorkoutCheckTime!);
+          if (!hasNewWorkout) {
+            print('✅ [주간요약] 캐시 사용 (즉시 반환)');
+            return _cachedWeeklySummary!;
+          } else {
+            print('🆕 [주간요약] 새 운동 발견, 재계산');
+          }
+        }
+      } else {
+        print('❌ [주간요약] 캐시 무효 또는 첫 실행');
+      }
+
       final now = DateTime.now();
       // 이번 주 월요일 계산 (weekday: 월=1, 일=7)
       final weekStart = now.subtract(Duration(days: now.weekday - 1));
@@ -363,7 +444,7 @@ class WorkoutStatsService {
       final dailyDetails = dailyDetailsMap.values.toList()
         ..sort((a, b) => a.date.compareTo(b.date));
 
-      return WeeklyWorkoutSummary(
+      final summary = WeeklyWorkoutSummary(
         totalDuration: totalDuration,
         totalSets: totalSets,
         totalVolume: totalVolume,
@@ -376,8 +457,21 @@ class WorkoutStatsService {
         topExercises: topExercises,
         dailyDetails: dailyDetails,
       );
+
+      // 캐시 저장
+      _cachedWeeklySummary = summary;
+      _cachedUserId = userId;
+      _cacheTime = DateTime.now();
+      _lastWorkoutCheckTime = DateTime.now();
+
+      print('✅ [주간요약] 계산 완료 및 캐시 저장');
+      return summary;
     } catch (e) {
-      print('주간 운동 요약 조회 실패: $e');
+      print('❌ 주간 운동 요약 조회 실패: $e');
+      // 캐시가 있으면 반환
+      if (_cachedWeeklySummary != null) {
+        return _cachedWeeklySummary!;
+      }
       return WeeklyWorkoutSummary(
         totalDuration: 0,
         totalSets: 0,
