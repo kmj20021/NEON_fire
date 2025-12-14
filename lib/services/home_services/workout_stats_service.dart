@@ -223,10 +223,18 @@ class WorkoutStatsService {
   Future<WeeklyWorkoutSummary> getWeeklyWorkoutSummary(String userId) async {
     try {
       final now = DateTime.now();
-      final weekStart = now.subtract(Duration(days: now.weekday % 7));
-      final weekEnd = weekStart.add(
+      // 이번 주 월요일 계산 (weekday: 월=1, 일=7)
+      final weekStart = now.subtract(Duration(days: now.weekday - 1));
+      final startOfWeek = DateTime(
+        weekStart.year,
+        weekStart.month,
+        weekStart.day,
+      );
+      final endOfWeek = startOfWeek.add(
         const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
       );
+
+      print('📅 [주간 요약] 조회 범위: $startOfWeek ~ $endOfWeek');
 
       final snapshot = await _db
           .collection('users')
@@ -234,10 +242,12 @@ class WorkoutStatsService {
           .collection('workout_sessions')
           .where(
             'startedAt',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart),
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startOfWeek),
           )
-          .where('startedAt', isLessThanOrEqualTo: Timestamp.fromDate(weekEnd))
+          .where('startedAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfWeek))
           .get();
+
+      print('📊 [주간 요약] 조회된 세션 개수: ${snapshot.docs.length}');
 
       if (snapshot.docs.isEmpty) {
         return WeeklyWorkoutSummary(
@@ -251,6 +261,7 @@ class WorkoutStatsService {
           maxDailyDuration: 0,
           exerciseCount: {},
           topExercises: [],
+          dailyDetails: [],
         );
       }
 
@@ -261,6 +272,9 @@ class WorkoutStatsService {
       Map<String, int> dailyDuration = {};
       Map<String, int> exerciseCount = {};
       int totalExercises = 0;
+      
+      // 일별 상세 정보 저장
+      Map<String, DailyWorkoutDetail> dailyDetailsMap = {};
 
       const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -277,24 +291,52 @@ class WorkoutStatsService {
           startedAt.day,
         );
         final dayOfWeek = weekDays[(startedAt.weekday - 1) % 7];
+        final dateKey = dateOnly.toIso8601String();
 
         totalDuration += duration;
         totalSets += sets;
         totalVolume += volume;
         totalExercises += exerciseCountInSession;
-        workoutDates.add(dateOnly.toIso8601String());
+        workoutDates.add(dateKey);
 
         // 요일별 운동 시간 집계
         dailyDuration[dayOfWeek] = (dailyDuration[dayOfWeek] ?? 0) + duration;
 
-        // 운동 종목별 횟수 계산
+        // 운동 종목 수집
         final exercisesSnapshot = await doc.reference
             .collection('exercises')
             .get();
+        
+        List<String> exerciseNames = [];
         for (var exerciseDoc in exercisesSnapshot.docs) {
           final exerciseName =
               exerciseDoc.data()['exerciseName'] as String? ?? '알 수 없음';
           exerciseCount[exerciseName] = (exerciseCount[exerciseName] ?? 0) + 1;
+          if (!exerciseNames.contains(exerciseName)) {
+            exerciseNames.add(exerciseName);
+          }
+        }
+
+        // 일별 상세 정보 업데이트
+        if (dailyDetailsMap.containsKey(dateKey)) {
+          final existing = dailyDetailsMap[dateKey]!;
+          dailyDetailsMap[dateKey] = DailyWorkoutDetail(
+            date: existing.date,
+            dayName: existing.dayName,
+            duration: existing.duration + duration,
+            sets: existing.sets + sets,
+            volume: existing.volume + volume,
+            exercises: [...existing.exercises, ...exerciseNames],
+          );
+        } else {
+          dailyDetailsMap[dateKey] = DailyWorkoutDetail(
+            date: dateOnly,
+            dayName: dayOfWeek,
+            duration: duration,
+            sets: sets,
+            volume: volume,
+            exercises: exerciseNames,
+          );
         }
       }
 
@@ -317,6 +359,10 @@ class WorkoutStatsService {
           ? 0.0
           : totalDuration / workoutDates.length;
 
+      // 일별 상세 정보를 날짜순으로 정렬
+      final dailyDetails = dailyDetailsMap.values.toList()
+        ..sort((a, b) => a.date.compareTo(b.date));
+
       return WeeklyWorkoutSummary(
         totalDuration: totalDuration,
         totalSets: totalSets,
@@ -328,6 +374,7 @@ class WorkoutStatsService {
         maxDailyDuration: maxDuration,
         exerciseCount: exerciseCount,
         topExercises: topExercises,
+        dailyDetails: dailyDetails,
       );
     } catch (e) {
       print('주간 운동 요약 조회 실패: $e');
@@ -342,6 +389,7 @@ class WorkoutStatsService {
         maxDailyDuration: 0,
         exerciseCount: {},
         topExercises: [],
+        dailyDetails: [],
       );
     }
   }

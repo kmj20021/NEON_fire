@@ -31,6 +31,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
   List<GroupBuyProduct> allProducts = [];
   bool isLoading = true;
   Map<String, bool> userParticipations = {}; // productId -> 참여 여부
+  
+  // 검색 관련
+  String searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -40,6 +44,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -75,10 +80,25 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   /// 필터링된 상품 리스트
   List<GroupBuyProduct> get filteredProducts {
-    if (selectedCategory == '전체') {
-      return allProducts;
+    var products = allProducts;
+    
+    // 카테고리 필터링
+    if (selectedCategory != '전체') {
+      products = products.where((p) => p.category == selectedCategory).toList();
     }
-    return allProducts.where((p) => p.category == selectedCategory).toList();
+    
+    // 검색 필터링
+    if (searchQuery.isNotEmpty) {
+      final query = searchQuery.toLowerCase();
+      products = products.where((p) {
+        return p.name.toLowerCase().contains(query) ||
+               p.description.toLowerCase().contains(query) ||
+               p.detailedDescription.toLowerCase().contains(query) ||
+               p.sellerName.toLowerCase().contains(query);
+      }).toList();
+    }
+    
+    return products;
   }
 
   @override
@@ -222,7 +242,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
           borderRadius: BorderRadius.circular(8),
@@ -231,10 +251,33 @@ class _ProductListScreenState extends State<ProductListScreen> {
           children: [
             Icon(Icons.search, color: Colors.grey.shade400, size: 20),
             const SizedBox(width: 8),
-            Text(
-              '상품명이나 제목으로 검색하기',
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: '상품명이나 제목으로 검색하기',
+                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    searchQuery = value;
+                  });
+                },
+              ),
             ),
+            if (searchQuery.isNotEmpty)
+              IconButton(
+                icon: Icon(Icons.clear, color: Colors.grey.shade400, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () {
+                  setState(() {
+                    _searchController.clear();
+                    searchQuery = '';
+                  });
+                },
+              ),
           ],
         ),
       ),

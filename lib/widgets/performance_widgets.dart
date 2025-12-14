@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:neon_fire/models/performance_models.dart';
-import 'package:neon_fire/controllers/performance_controller.dart';
+import 'package:neon_fire/services/performance_controller.dart';
 
 /// Performance View Widgets - MVC 패턴의 View
 /// 재사용 가능한 UI 위젯들

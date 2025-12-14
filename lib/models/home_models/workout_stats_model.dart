@@ -59,6 +59,7 @@ class WeeklyWorkoutSummary {
   final int maxDailyDuration; // 하루 최대 운동 시간
   final Map<String, int> exerciseCount; // 운동별 횟수
   final List<String> topExercises; // 가장 많이 한 운동 Top 3
+  final List<DailyWorkoutDetail> dailyDetails; // 일별 상세 운동 기록
 
   WeeklyWorkoutSummary({
     required this.totalDuration,
@@ -71,5 +72,25 @@ class WeeklyWorkoutSummary {
     required this.maxDailyDuration,
     required this.exerciseCount,
     required this.topExercises,
+    required this.dailyDetails,
+  });
+}
+
+/// 일별 운동 상세 정보
+class DailyWorkoutDetail {
+  final DateTime date;
+  final String dayName; // 월, 화, 수...
+  final int duration; // 운동 시간 (초)
+  final int sets; // 세트 수
+  final double volume; // 볼륨 (kg)
+  final List<String> exercises; // 운동 종목 리스트
+
+  DailyWorkoutDetail({
+    required this.date,
+    required this.dayName,
+    required this.duration,
+    required this.sets,
+    required this.volume,
+    required this.exercises,
   });
 }

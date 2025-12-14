@@ -1,4 +1,4 @@
-// lib/controllers/performance_controller.dart
+// lib/services/performance_controller.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:neon_fire/models/performance_models.dart';
@@ -22,14 +22,24 @@ class PerformanceController extends ChangeNotifier {
 
   bool isLoading = true;
   String? errorMessage;
+  bool _disposed = false;
 
   PerformanceController({required this.userId});
 
+  /// 안전한 notifyListeners 호출
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
   /// 모든 데이터 로드
   Future<void> loadAllData() async {
+    if (_disposed) return;
+    
     isLoading = true;
     errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       // 모든 데이터를 병렬로 한 번에 로드
@@ -41,6 +51,8 @@ class PerformanceController extends ChangeNotifier {
         _service.generatePerformanceComment(userId, selectedPeriod),
       ]);
 
+      if (_disposed) return;
+
       // 모든 데이터 로드가 완료된 후 한 번에 업데이트
       summary = results[0] as PerformanceSummary?;
       goalAchievement = results[1] as GoalAchievement?;
@@ -49,12 +61,14 @@ class PerformanceController extends ChangeNotifier {
       performanceComment = results[4] as PerformanceComment?;
       isLoading = false;
       
-      notifyListeners();
+      _safeNotifyListeners();
     } catch (e) {
       print('데이터 로드 실패: $e');
+      if (_disposed) return;
+      
       errorMessage = '데이터를 불러오는데 실패했습니다';
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -144,7 +158,7 @@ class PerformanceController extends ChangeNotifier {
 
   @override
   void dispose() {
-    // 리소스 정리
+    _disposed = true;
     super.dispose();
   }
 }
